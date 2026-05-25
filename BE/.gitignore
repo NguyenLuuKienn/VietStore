@@ -1,0 +1,32 @@
+﻿# BE (.NET / ASP.NET Core)
+
+# Build outputs
+bin/
+obj/
+out/
+
+# User files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# EF / local DB artifacts
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets
+appsettings.Development.json
+secrets.json
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,45 @@
+﻿# Global ignores for VietStore monorepo
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.tmp
+*.log
+.vscode/
+.idea/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+
+# Archive / dump
+*.zip
+*.rar
+*.7z
+*.bak
+*.sql.bak
+
+# Generic dependencies/build
+node_modules/
+dist/
+build/
+coverage/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local tooling caches
+.cache/
+.npm/
+.vs/
+BE/VietStore/.vs/

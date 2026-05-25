@@ -1,0 +1,29 @@
+﻿# FE (React + Vite + TS)
+
+node_modules/
+dist/
+build/
+coverage/
+.vite/
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# env
+.env
+.env.*
+!.env.example
+
+# test/cache
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+
+# editor
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

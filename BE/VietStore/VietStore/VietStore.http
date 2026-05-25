@@ -1,0 +1,6 @@
+@VietStore_HostAddress = http://localhost:5195
+
+GET {{VietStore_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
