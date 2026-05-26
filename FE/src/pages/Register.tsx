@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Mail, Lock, User, ArrowLeft, Shirt, UserPlus } from 'lucide-react';
 import { AuthService } from '../services/authService';
 import { toast } from '../lib/toast';
@@ -20,10 +20,10 @@ const Register: React.FC<RegisterProps> = ({ navigateToHome, navigateToLogin, on
     setError('');
     try {
       await AuthService.register(fullName, email, password);
-      toast.success('Dang ky thanh cong');
+      toast.success('Đăng ký thành công');
       onRegisterSuccess();
     } catch (err: any) {
-      const msg = err.message || 'Dang ky that bai';
+      const msg = err.message || 'Đăng ký thất bại';
       setError(msg);
       toast.error(msg);
     }
@@ -100,33 +100,6 @@ const Register: React.FC<RegisterProps> = ({ navigateToHome, navigateToLogin, on
               </button>
             </div>
 
-            <div className="relative mt-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-100"></div>
-              </div>
-              <div className="relative flex justify-center text-sm font-medium">
-                <span className="px-3 bg-white text-gray-500">Hoặc đăng ký nhanh với</span>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await AuthService.loginWithGoogle();
-                    onRegisterSuccess();
-                  } catch (err: any) {
-                    setError(err.message);
-                  }
-                }}
-                className="w-full flex justify-center items-center gap-3 py-3 px-4 border border-gray-200 rounded-[12px] bg-white text-[15px] font-bold text-dark hover:bg-gray-50 transition-all cursor-pointer shadow-sm"
-              >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-                Đăng ký bằng Google
-              </button>
-            </div>
-            
             <p className="text-xs text-center text-gray-500 font-medium">Bằng việc đăng ký, bạn đồng ý với Điều khoản và chính sách của chúng tôi.</p>
           </form>
         </div>
@@ -135,4 +108,5 @@ const Register: React.FC<RegisterProps> = ({ navigateToHome, navigateToLogin, on
   );
 };
 export default Register;
+
 

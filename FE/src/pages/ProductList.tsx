@@ -185,13 +185,15 @@ const ProductList: React.FC<ProductListProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5 lg:gap-6 items-start justify-items-center">
                {isLoading ? (
                  <div className="col-span-full py-20 flex justify-center">
                    <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
                  </div>
                ) : filteredProducts.map(product => (
-                 <ProductCard key={product.id} product={product} onClick={() => onProductClick(product)} />
+                 <div key={product.id} className="w-full max-w-[285px]">
+                   <ProductCard product={product} onClick={() => onProductClick(product)} />
+                 </div>
                ))}
             </div>
              

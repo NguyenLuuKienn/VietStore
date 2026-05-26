@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using VietStore.Data;
 
@@ -37,6 +38,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> CreateCategory([FromBody] CreateCategoryRequest request)
     {
         var entity = new Models.DanhMuc
@@ -53,6 +55,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpPut("{maDanhMuc}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateCategory(string maDanhMuc, [FromBody] UpdateCategoryRequest request)
     {
         var category = await _dbContext.DanhMuc.FirstOrDefaultAsync(x => x.MaDanhMuc == maDanhMuc);
@@ -66,6 +69,7 @@ public class CategoriesController : ControllerBase
     }
 
     [HttpDelete("{maDanhMuc}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteCategory(string maDanhMuc)
     {
         var category = await _dbContext.DanhMuc.FirstOrDefaultAsync(x => x.MaDanhMuc == maDanhMuc);
@@ -80,3 +84,4 @@ public class CategoriesController : ControllerBase
 
 public record CreateCategoryRequest(string MaDanhMuc, string TenDanhMuc, string? MaDanhMucCha);
 public record UpdateCategoryRequest(string TenDanhMuc, string? MaDanhMucCha);
+

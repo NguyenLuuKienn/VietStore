@@ -23,6 +23,10 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onProd
   const [isDetailLoading, setIsDetailLoading] = useState(true);
   const stock = Number(fullProduct.stockQuantity ?? 0);
   const inStock = stock > 0;
+  const basePrice = Number(fullProduct.price || 0);
+  const discountAmount = Number(fullProduct.discountAmount || 0);
+  const hasDiscount = Boolean(fullProduct.isDiscounted) && discountAmount > 0;
+  const finalPrice = Math.max(0, basePrice - discountAmount);
 
   useEffect(() => {
     setFullProduct(product);
@@ -33,27 +37,41 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onProd
 
   useEffect(() => {
     let cancelled = false;
-    const preloadImages = async (urls: string[]) => {
-      await Promise.all(
-        urls.map((url) =>
-          new Promise<void>((resolve) => {
-            const img = new Image();
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
-            img.src = url;
-          })
-        )
-      );
+    const preloadMainImage = async (url?: string) => {
+      if (!url) return;
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        const timeout = window.setTimeout(resolve, 1500);
+        img.onload = () => {
+          window.clearTimeout(timeout);
+          resolve();
+        };
+        img.onerror = () => {
+          window.clearTimeout(timeout);
+          resolve();
+        };
+        img.src = url;
+      });
     };
 
     const loadDetail = async () => {
+      const forceStop = window.setTimeout(() => {
+        if (!cancelled) setIsDetailLoading(false);
+      }, 8000);
       try {
         const p = await ApiService.getProductById(product.id);
         if (!p || cancelled) return;
         setFullProduct(p);
         setMainImg(p.images?.[0] || 'https://placehold.co/400x533');
-        await preloadImages(p.images || []);
+        await preloadMainImage(p.images?.[0]);
+      } catch {
+        if (!cancelled) {
+          // Keep rendering current product data if detail API fails.
+          setFullProduct(product);
+          setMainImg(product.images?.[0] || 'https://placehold.co/400x533');
+        }
       } finally {
+        window.clearTimeout(forceStop);
         if (!cancelled) setIsDetailLoading(false);
       }
     };
@@ -118,7 +136,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onProd
   }
 
   return (
-    <main className="flex-1 container mx-auto px-4 sm:px-10 py-6 sm:py-8 bg-bg min-h-screen">
+    <main className="flex-1 container mx-auto px-4 sm:px-10 py-5 sm:py-6 bg-bg min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <button onClick={onBack} className="flex items-center gap-2 text-dark hover:text-primary text-[15px] font-semibold bg-transparent border-none cursor-pointer transition-colors w-fit">
           <ArrowLeft className="w-5 h-5" /> Quay lại
@@ -126,8 +144,8 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onProd
         <span className="text-sm font-medium text-gray-500 hidden sm:block">Trang chủ / Sản phẩm / {fullProduct.name}</span>
       </div>
 
-      <div className="bg-white rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-6 lg:p-10 flex flex-col md:flex-row gap-8 lg:gap-14 mb-14">
-        <div className="w-full md:w-[45%] flex flex-col sm:flex-row gap-4">
+      <div className="bg-white rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-5 lg:p-7 flex flex-col md:flex-row md:items-start gap-6 lg:gap-8 mb-8">
+        <div className="w-full md:w-[45%] self-start flex flex-col sm:flex-row gap-4">
           <div className="flex sm:flex-col gap-3 order-2 sm:order-1 overflow-x-auto no-scrollbar sm:overflow-visible pb-2 sm:pb-0">
             {fullProduct.images?.map((img: string, i: number) => (
               <button
@@ -144,14 +162,14 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onProd
           </div>
         </div>
 
-        <div className="w-full md:w-[55%] flex flex-col py-2">
+        <div className="w-full md:w-[55%] self-start flex flex-col py-1">
           <div className="inline-flex items-center gap-2 mb-3">
             <span className="bg-primary/10 text-primary text-[12px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide">{fullProduct.category}</span>
             <span className="bg-red-50 text-red-500 text-[12px] font-bold px-2.5 py-1 rounded-md uppercase tracking-wide flex items-center gap-1"><Star className="w-3 h-3 fill-current" /> Nổi bật</span>
           </div>
           <h1 className="text-[26px] lg:text-[34px] font-[800] text-dark leading-[1.2] mb-3 tracking-tight">{fullProduct.name}</h1>
 
-          <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-3 mb-4">
             <div className="flex text-amber-400">
               <Star className="w-[18px] h-[18px] fill-current" />
               <Star className="w-[18px] h-[18px] fill-current" />
@@ -167,14 +185,24 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onProd
             </span>
           </div>
 
-          <div className="text-[36px] font-[900] text-primary mb-6 border-b border-gray-100 pb-6">{CartService.formatPrice(fullProduct.price)}</div>
-
-          <div className="mb-8">
-            <h3 className="font-bold text-dark text-[16px] mb-3">Mô tả sản phẩm</h3>
-            <p className="text-gray-600 text-[15px] leading-[1.8]">{fullProduct.description}</p>
+          <div className="mb-4 border-b border-gray-100 pb-4">
+            {hasDiscount && (
+              <div className="text-gray-400 text-lg line-through font-semibold mb-1">{CartService.formatPrice(basePrice)}</div>
+            )}
+            <div className="text-[36px] font-[900] text-primary">{CartService.formatPrice(finalPrice)}</div>
           </div>
 
-          <div className="mb-10">
+          {!!fullProduct.detailedInfo && (
+            <div className="mb-6">
+              <h3 className="font-bold text-dark text-[16px] mb-3">Thông tin chi tiết</h3>
+              <div
+                className="text-gray-600 text-[15px] leading-[1.8] prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: fullProduct.detailedInfo || '' }}
+              />
+            </div>
+          )}
+
+          <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-bold text-dark text-[16px]">Chọn kích thước:</h3>
               <button className="text-primary text-[14px] font-semibold border-none bg-transparent hover:underline cursor-pointer">Hướng dẫn chọn size</button>
@@ -210,7 +238,15 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onProd
         </div>
       </div>
 
-      <div className="mb-8">
+      <div className="bg-white rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.04)] p-5 lg:p-6 mb-8">
+        <h3 className="font-bold text-dark text-[18px] mb-4">Mô tả sản phẩm</h3>
+        <div
+          className="text-gray-600 text-[15px] leading-[1.8] prose prose-sm max-w-none"
+          dangerouslySetInnerHTML={{ __html: fullProduct.description || '' }}
+        />
+      </div>
+
+      <div className="mb-6">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-[24px] sm:text-[28px] font-[800] text-dark flex items-center gap-3">
             <span className="w-2.5 h-8 bg-primary rounded-full"></span>
@@ -218,9 +254,11 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, onBack, onProd
           </h2>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 lg:gap-4 items-start">
           {relatedProducts.map(p => (
-            <ProductCard key={p.id} product={p} onClick={() => onProductClick(p)} />
+            <div key={p.id} className="w-full">
+              <ProductCard product={p} onClick={() => onProductClick(p)} />
+            </div>
           ))}
         </div>
       </div>

@@ -2,14 +2,18 @@ export interface Product {
   id: string;
   name: string;
   price: string;
+  isDiscounted?: boolean;
+  discountAmount?: number;
   category: string;
   images: string[];
   description: string;
+  detailedInfo?: string;
   isFeaturedNew?: boolean;
   isFeaturedBestseller?: boolean;
   soldCount?: number;
   stockQuantity?: number;
   supplier?: string;
+  isVisible?: boolean;
 }
 
 export const hotCategories = [
@@ -42,6 +46,7 @@ export interface User {
 export interface Banner {
   id?: string;
   imageUrl: string;
+  linkUrl?: string;
   title?: string;
   subtitle?: string;
   bgColor?: string;

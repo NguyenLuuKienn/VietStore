@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using VietStore.Data;
 using VietStore.Models;
@@ -17,6 +18,7 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> GetNotifications([FromQuery] string? maNguoiDung)
     {
         var query = _dbContext.ThongBao.AsQueryable();
@@ -30,6 +32,7 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> CreateNotification([FromBody] CreateNotificationRequest request)
     {
         var item = new ThongBao
@@ -47,6 +50,7 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpPut("{maThongBao:int}/read")]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> MarkAsRead(int maThongBao)
     {
         var item = await _dbContext.ThongBao.FirstOrDefaultAsync(x => x.MaThongBao == maThongBao);
@@ -57,6 +61,7 @@ public class NotificationsController : ControllerBase
     }
 
     [HttpPut("read-all")]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> MarkAllAsRead([FromQuery] string? maNguoiDung)
     {
         var query = _dbContext.ThongBao.AsQueryable();
@@ -73,3 +78,4 @@ public class NotificationsController : ControllerBase
 }
 
 public record CreateNotificationRequest(string? MaNguoiDung, string TieuDe, string NoiDung, string LoaiThongBao);
+

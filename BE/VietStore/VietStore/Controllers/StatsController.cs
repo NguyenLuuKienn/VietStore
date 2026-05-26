@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using VietStore.Data;
 
@@ -16,6 +17,7 @@ public class StatsController : ControllerBase
     }
 
     [HttpGet("dashboard-summary")]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> DashboardSummary()
     {
         var completedStatuses = new[] { "HoanThanh", "Completed" };
@@ -36,6 +38,7 @@ public class StatsController : ControllerBase
     }
 
     [HttpGet("revenue")]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> Revenue([FromQuery] string? groupBy, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
         var completedStatuses = new[] { "HoanThanh", "Completed" };
@@ -67,6 +70,7 @@ public class StatsController : ControllerBase
     }
 
     [HttpGet("top-products")]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> TopProducts([FromQuery] int limit = 10)
     {
         var query = from ct in _dbContext.ChiTietDonHang
@@ -84,3 +88,4 @@ public class StatsController : ControllerBase
         return Ok(data);
     }
 }
+

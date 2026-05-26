@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using VietStore.Data;
 using VietStore.Models;
@@ -31,6 +32,7 @@ public class SuppliersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> CreateSupplier([FromBody] CreateSupplierRequest request)
     {
         var item = new NhaCungCap
@@ -49,6 +51,7 @@ public class SuppliersController : ControllerBase
     }
 
     [HttpPut("{maNhaCungCap}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateSupplier(string maNhaCungCap, [FromBody] UpdateSupplierRequest request)
     {
         var item = await _dbContext.NhaCungCap.FirstOrDefaultAsync(x => x.MaNhaCungCap == maNhaCungCap);
@@ -66,6 +69,7 @@ public class SuppliersController : ControllerBase
     }
 
     [HttpDelete("{maNhaCungCap}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteSupplier(string maNhaCungCap)
     {
         var item = await _dbContext.NhaCungCap.FirstOrDefaultAsync(x => x.MaNhaCungCap == maNhaCungCap);
@@ -78,3 +82,4 @@ public class SuppliersController : ControllerBase
 
 public record CreateSupplierRequest(string MaNhaCungCap, string TenCongTy, string NguoiLienHe, string SoDienThoai, string Email, string DiaChi, string TrangThai);
 public record UpdateSupplierRequest(string TenCongTy, string NguoiLienHe, string SoDienThoai, string Email, string DiaChi, string TrangThai);
+

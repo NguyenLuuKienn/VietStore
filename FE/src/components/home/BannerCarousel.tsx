@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Banner } from '../../types';
-import { BannerService } from '../../services/bannerService';
 
 interface BannerCarouselProps {
   banners?: Banner[];
@@ -15,11 +14,7 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners: externalBanner
   const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (externalBanners && externalBanners.length > 0) {
-      setBanners(externalBanners);
-      return;
-    }
-    BannerService.getBanners(true).then(setBanners);
+    setBanners(externalBanners || []);
   }, [externalBanners]);
 
   useEffect(() => {
@@ -41,6 +36,16 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners: externalBanner
   const move = (dir: number) => {
     setDirection(dir);
     setCurrentIndex((prev) => (prev + dir + banners.length) % banners.length);
+  };
+
+  const openBannerLink = () => {
+    const link = currentBanner?.linkUrl?.trim();
+    if (!link) return;
+    if (link.startsWith('http://') || link.startsWith('https://')) {
+      window.open(link, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    window.location.href = link.startsWith('/') ? link : `/${link}`;
   };
 
   if (banners.length === 0) {
@@ -82,7 +87,10 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners: externalBanner
   const currentImageLoaded = Boolean(loadedImages[currentBanner.imageUrl || '']);
 
   return (
-    <div className="relative h-[250px] sm:h-[400px] lg:h-[500px] w-full overflow-hidden bg-gray-100 mb-8 sm:mb-12">
+    <div
+      className={`relative h-[250px] sm:h-[400px] lg:h-[500px] w-full overflow-hidden bg-gray-100 mb-8 sm:mb-12 ${currentBanner?.linkUrl ? 'cursor-pointer' : ''}`}
+      onClick={openBannerLink}
+    >
       <AnimatePresence initial={false} custom={direction}>
         <motion.div
           key={currentIndex}
@@ -137,7 +145,13 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners: externalBanner
                       {currentBanner.subtitle}
                     </p>
                   )}
-                  <button className="bg-white text-dark px-6 sm:px-10 py-3 sm:py-4 rounded-full font-black text-sm sm:text-base border-none cursor-pointer shadow-xl hover:scale-105 active:scale-95 transition-all">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openBannerLink();
+                    }}
+                    className="bg-white text-dark px-6 sm:px-10 py-3 sm:py-4 rounded-full font-black text-sm sm:text-base border-none cursor-pointer shadow-xl hover:scale-105 active:scale-95 transition-all"
+                  >
                     Khám phá ngay
                   </button>
                 </motion.div>
@@ -150,13 +164,19 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners: externalBanner
       {banners.length > 1 && (
         <>
           <button 
-            onClick={() => move(-1)}
+            onClick={(e) => {
+              e.stopPropagation();
+              move(-1);
+            }}
             className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-10 p-2 sm:p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white border border-white/20 transition-all cursor-pointer hidden sm:flex"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
           <button 
-            onClick={() => move(1)}
+            onClick={(e) => {
+              e.stopPropagation();
+              move(1);
+            }}
             className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-10 p-2 sm:p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white border border-white/20 transition-all cursor-pointer hidden sm:flex"
           >
             <ChevronRight className="w-6 h-6" />
@@ -166,7 +186,8 @@ const BannerCarousel: React.FC<BannerCarouselProps> = ({ banners: externalBanner
             {banners.map((_, idx) => (
               <button
                 key={idx}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setDirection(idx > currentIndex ? 1 : -1);
                   setCurrentIndex(idx);
                 }}

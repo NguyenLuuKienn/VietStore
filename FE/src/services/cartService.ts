@@ -1,75 +1,91 @@
 import { CartItem } from '../types';
 import { AuthService } from './authService';
+import { ApiService } from './apiService';
 
 let currentCart: CartItem[] = [];
 let currentUserId: string | null = null;
+let isLoading = false;
+let tempCartItemId = -1;
+let syncTimer: number | null = null;
 
 const notifyCartChange = () => {
   window.dispatchEvent(new Event('cart-updated'));
 };
 
-const getUserId = () => AuthService.getUser()?.id;
+const getUserId = () => AuthService.getUser()?.id || null;
 
-const loadCartFromStorage = () => {
-    const userId = getUserId();
-    currentUserId = userId || null;
-    if (userId) {
-        const carts = JSON.parse(localStorage.getItem('shop_carts') || '{}');
-        currentCart = carts[userId] || [];
-    } else {
-        currentCart = [];
-    }
+const mapCartItems = (items: any[]): CartItem[] =>
+  (items || []).map((x: any) => ({
+    id: Number(x.id ?? x.maChiTietGioHang ?? 0),
+    productId: String(x.productId ?? x.maSanPham ?? ''),
+    name: String(x.name ?? x.tenSanPham ?? ''),
+    price: Number(x.price ?? x.giaBan ?? 0),
+    image: String(x.image ?? x.urlHinhAnh ?? ''),
+    quantity: Number(x.quantity ?? x.soLuong ?? 0),
+    size: String(x.size ?? x.kichThuoc ?? 'M')
+  }));
+
+const reloadFromApi = async () => {
+  const userId = getUserId();
+  currentUserId = userId;
+  if (!userId) {
+    currentCart = [];
     notifyCartChange();
-};
-
-const ensureActiveUserCart = () => {
-  const userId = getUserId() || null;
-  if (userId !== currentUserId) {
-    loadCartFromStorage();
+    return;
+  }
+  if (isLoading) return;
+  isLoading = true;
+  try {
+    const rs = await ApiService.getCart();
+    currentCart = mapCartItems(rs?.items || []);
+  } catch {
+    currentCart = [];
+  } finally {
+    isLoading = false;
+    notifyCartChange();
   }
 };
 
-const saveCartToStorage = () => {
-    const userId = getUserId();
-    if (userId) {
-        const carts = JSON.parse(localStorage.getItem('shop_carts') || '{}');
-        carts[userId] = currentCart;
-        localStorage.setItem('shop_carts', JSON.stringify(carts));
-    }
-    notifyCartChange();
+const scheduleSyncFromApi = (delayMs = 300) => {
+  if (syncTimer) window.clearTimeout(syncTimer);
+  syncTimer = window.setTimeout(() => {
+    void reloadFromApi();
+  }, delayMs);
 };
 
-// Listen for auth changes to reload cart
-window.addEventListener('storage', (e) => {
-    if (e.key === 'user') loadCartFromStorage();
-});
-window.addEventListener('auth-changed', loadCartFromStorage);
+const ensureActiveUserCart = async () => {
+  const userId = getUserId();
+  if (userId !== currentUserId) {
+    await reloadFromApi();
+  }
+};
 
-// Initial load
-loadCartFromStorage();
+window.addEventListener('auth-changed', () => {
+  reloadFromApi();
+});
+
+void reloadFromApi();
 
 export const CartService = {
   getCartItems: (): CartItem[] => {
-    ensureActiveUserCart();
     return currentCart;
   },
-  
+
   getCartTotal: (): number => {
-    ensureActiveUserCart();
-    return currentCart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return currentCart.reduce((total, item) => total + item.price * item.quantity, 0);
   },
 
   getCartCount: (): number => {
-    ensureActiveUserCart();
     return currentCart.reduce((count, item) => count + item.quantity, 0);
   },
 
   clearCart: async (): Promise<void> => {
-    ensureActiveUserCart();
+    await ensureActiveUserCart();
+    await ApiService.clearCart();
     currentCart = [];
-    saveCartToStorage();
+    notifyCartChange();
   },
-  
+
   formatPrice: (price: number | string): string => {
     const num = typeof price === 'string' ? parseFloat(price.toString().replace(/\D/g, '')) : price;
     if (isNaN(num)) return '0 đ';
@@ -77,38 +93,70 @@ export const CartService = {
   },
 
   addItem: async (product: any, size: string, quantity: number = 1): Promise<void> => {
-    ensureActiveUserCart();
-    const existingIndex = currentCart.findIndex(i => i.productId === product.id && i.size === size);
-    
+    await ensureActiveUserCart();
+    const normalizedSize = size || 'M';
+    const productId = String(product.id);
+    const existingIndex = currentCart.findIndex(i => i.productId === productId && i.size === normalizedSize);
     if (existingIndex !== -1) {
       currentCart[existingIndex].quantity += quantity;
     } else {
-      const newItem: CartItem = {
-        id: Date.now(),
-        productId: product.id,
-        name: product.name,
-        price: parseInt(product.price.toString().replace(/\D/g, '')),
-        image: typeof product.images === 'string' ? product.images : (product.images?.[0] || ''),
+      const rawPrice = Number(product.price || 0);
+      const discount = Number(product.discountAmount || 0);
+      const hasDiscount = Boolean(product.isDiscounted) && discount > 0;
+      const finalPrice = hasDiscount ? Math.max(0, rawPrice - discount) : rawPrice;
+      currentCart.push({
+        id: tempCartItemId--,
+        productId,
+        name: String(product.name || ''),
+        price: Number.isFinite(finalPrice) ? finalPrice : 0,
+        image: Array.isArray(product.images) ? (product.images[0] || '') : String(product.images || ''),
         quantity,
-        size
-      };
-      currentCart.push(newItem);
+        size: normalizedSize
+      });
     }
-    saveCartToStorage();
+    notifyCartChange();
+
+    ApiService.addCartItem({
+      productId,
+      size: normalizedSize,
+      quantity
+    })
+      .then(() => scheduleSyncFromApi(120))
+      .catch(() => scheduleSyncFromApi(120));
   },
 
   removeItem: async (id: number): Promise<void> => {
-    ensureActiveUserCart();
+    await ensureActiveUserCart();
+    const old = [...currentCart];
     currentCart = currentCart.filter(i => i.id !== id);
-    saveCartToStorage();
+    notifyCartChange();
+    if (id > 0) {
+      ApiService.removeCartItem(id).catch(() => {
+        currentCart = old;
+        notifyCartChange();
+        scheduleSyncFromApi(120);
+      });
+    }
   },
 
   updateQuantity: async (id: number, quantity: number): Promise<void> => {
-    ensureActiveUserCart();
+    await ensureActiveUserCart();
     const index = currentCart.findIndex(i => i.id === id);
     if (index !== -1) {
+      const oldQty = currentCart[index].quantity;
       currentCart[index].quantity = quantity;
-      saveCartToStorage();
+      notifyCartChange();
+      if (id > 0) {
+        ApiService.updateCartItem(id, quantity).catch(() => {
+          currentCart[index].quantity = oldQty;
+          notifyCartChange();
+          scheduleSyncFromApi(120);
+        });
+      } else {
+        scheduleSyncFromApi(120);
+      }
+      return;
     }
+    scheduleSyncFromApi(120);
   }
 };

@@ -2,6 +2,7 @@
 import { Plus, Trash2, Edit2, MoveUp, MoveDown, Image as ImageIcon, Tag, Loader2, Scissors } from 'lucide-react';
 import { Banner, PromoBannerData } from '../../types';
 import { BannerService } from '../../services/bannerService';
+import { SystemConfigService } from '../../services/systemConfigService';
 import Modal from '../../components/common/Modal';
 import { toast } from '../../lib/toast';
 
@@ -20,6 +21,7 @@ const Settings: React.FC = () => {
   const [editingPromo, setEditingPromo] = useState<Partial<PromoBannerData> | null>(null);
   const [deletingBannerId, setDeletingBannerId] = useState<string | null>(null);
   const [deletingPromoId, setDeletingPromoId] = useState<string | null>(null);
+  const [shippingFeeInput, setShippingFeeInput] = useState<number>(SystemConfigService.getShippingFee());
 
   const handleEditImage = (url: string, onSave: (newUrl: string) => Promise<void>) => {
     const editor = openDefaultEditor({
@@ -81,6 +83,7 @@ const Settings: React.FC = () => {
   const handleAdd = () => {
     setEditingBanner({
       imageUrl: 'https://picsum.photos/seed/banner/1200/400',
+      linkUrl: '/',
       title: 'Bộ sưu tập mới',
       subtitle: 'Giảm giá tới 50%',
       bgColor: '#f3f4f6',
@@ -204,6 +207,44 @@ const Settings: React.FC = () => {
         </div>
       </div>
 
+      <section className="space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+            <Tag className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="font-black text-dark tracking-tight">Cấu hình vận chuyển</h3>
+            <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Phí giao hàng mặc định</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">Phí giao hàng (VND)</label>
+              <input
+                type="number"
+                min={0}
+                step={1000}
+                value={shippingFeeInput}
+                onChange={(e) => setShippingFeeInput(Number(e.target.value || 0))}
+                className="w-full p-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-primary"
+                placeholder="30000"
+              />
+            </div>
+            <button
+              onClick={() => {
+                SystemConfigService.setShippingFee(shippingFeeInput);
+                toast.success('Đã cập nhật phí giao hàng');
+              }}
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold border-none cursor-pointer hover:bg-emerald-700 transition-colors"
+            >
+              Lưu phí giao hàng
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* MAIN BANNERS */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
@@ -314,6 +355,16 @@ const Settings: React.FC = () => {
             <div>
               <label className="block text-sm font-bold text-gray-700 mb-1">Phụ đề</label>
               <input type="text" value={editingBanner.subtitle || ''} onChange={e => setEditingBanner({...editingBanner, subtitle: e.target.value})} className="w-full p-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-primary" placeholder="Nhập phụ đề" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">URL liên kết</label>
+              <input
+                type="text"
+                value={editingBanner.linkUrl || ''}
+                onChange={e => setEditingBanner({ ...editingBanner, linkUrl: e.target.value })}
+                className="w-full p-2.5 border border-gray-200 rounded-xl focus:outline-none focus:border-primary"
+                placeholder="/products hoặc https://example.com"
+              />
             </div>
             <div className="flex gap-2 items-end">
               <div className="flex-1">

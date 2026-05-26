@@ -67,13 +67,13 @@ const Orders: React.FC = () => {
     if (!orderId || cancellingOrderId === orderId) return;
     setCancellingOrderId(orderId);
     try {
+      await ApiService.updateOrder(orderId, { status: 'DaHuy' });
       try {
-        await ApiService.updateOrder(orderId, { status: 'DaHuy' });
+        await loadOrders();
       } catch {
-        // Retry once to avoid transient first-call failures.
-        await ApiService.updateOrder(orderId, { status: 'DaHuy' });
+        // Do not treat refresh failure as cancel failure.
       }
-      await loadOrders();
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: 'DaHuy' } : o)));
       if (selectedOrder?.id === orderId) {
         setSelectedOrder((prev: any) => ({ ...prev, status: 'DaHuy' }));
       }

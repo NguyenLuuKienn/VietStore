@@ -4,6 +4,7 @@ import { http } from './httpClient';
 const mapBanner = (b: any): Banner => ({
   id: b.maBanner || b.MaBanner,
   imageUrl: b.urlHinhAnh || b.URLHinhAnh,
+  linkUrl: b.duongDan || b.DuongDan || '/',
   title: b.tieuDe || b.TieuDe,
   subtitle: b.phuDe || b.PhuDe,
   order: b.thuTu || b.ThuTu || 1,
@@ -32,7 +33,7 @@ export const BannerService = {
       MucGiam: null,
       MaCode: null,
       URLHinhAnh: banner.imageUrl,
-      DuongDan: '/',
+      DuongDan: banner.linkUrl || '/',
       ThuTu: banner.order,
       LoaiBanner: 'Main'
     });
@@ -49,7 +50,7 @@ export const BannerService = {
       MucGiam: pick(found, 'mucGiam', 'MucGiam') ?? null,
       MaCode: pick(found, 'maCode', 'MaCode') ?? null,
       URLHinhAnh: banner.imageUrl ?? pick(found, 'urlHinhAnh', 'URLHinhAnh') ?? '',
-      DuongDan: pick(found, 'duongDan', 'DuongDan') ?? '/',
+      DuongDan: banner.linkUrl ?? pick(found, 'duongDan', 'DuongDan') ?? '/',
       ThuTu: Number(banner.order ?? pick(found, 'thuTu', 'ThuTu') ?? 1),
       LoaiBanner: pick(found, 'loaiBanner', 'LoaiBanner') ?? 'Main'
     });

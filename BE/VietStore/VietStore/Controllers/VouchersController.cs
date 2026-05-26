@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using VietStore.Data;
 using VietStore.Models;
@@ -17,6 +18,7 @@ public class VouchersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> GetVouchers([FromQuery] bool all = false)
     {
         var today = DateTime.UtcNow.Date;
@@ -60,6 +62,7 @@ public class VouchersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> CreateVoucher([FromBody] CreateVoucherRequest request)
     {
         var item = new KhuyenMai
@@ -82,6 +85,7 @@ public class VouchersController : ControllerBase
     }
 
     [HttpPut("{maKhuyenMai}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateVoucher(string maKhuyenMai, [FromBody] UpdateVoucherRequest request)
     {
         var item = await _dbContext.KhuyenMai.FirstOrDefaultAsync(x => x.MaKhuyenMai == maKhuyenMai);
@@ -93,6 +97,7 @@ public class VouchersController : ControllerBase
     }
 
     [HttpDelete("{maKhuyenMai}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteVoucher(string maKhuyenMai)
     {
         var item = await _dbContext.KhuyenMai.FirstOrDefaultAsync(x => x.MaKhuyenMai == maKhuyenMai);
@@ -106,3 +111,4 @@ public class VouchersController : ControllerBase
 public record ApplyVoucherRequest(string MaCode, decimal TongTienHienTai);
 public record CreateVoucherRequest(string MaKhuyenMai, string MaCode, string LoaiGiamGia, decimal GiaTriGiam, decimal? GiamToiDa, decimal GiaTriDonToiThieu, int SoLuong, DateTime NgayBatDau, DateTime NgayKetThuc, bool TrangThai);
 public record UpdateVoucherRequest(int SoLuong, bool TrangThai);
+

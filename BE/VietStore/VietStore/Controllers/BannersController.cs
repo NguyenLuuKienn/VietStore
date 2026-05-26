@@ -1,4 +1,5 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using VietStore.Data;
 using VietStore.Models;
@@ -26,6 +27,7 @@ public class BannersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> CreateBanner([FromBody] CreateBannerRequest request)
     {
         var item = new Banner
@@ -46,6 +48,7 @@ public class BannersController : ControllerBase
     }
 
     [HttpPut("{maBanner}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateBanner(string maBanner, [FromBody] UpdateBannerRequest request)
     {
         var item = await _dbContext.Banner.FirstOrDefaultAsync(x => x.MaBanner == maBanner);
@@ -65,6 +68,7 @@ public class BannersController : ControllerBase
     }
 
     [HttpDelete("{maBanner}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteBanner(string maBanner)
     {
         var item = await _dbContext.Banner.FirstOrDefaultAsync(x => x.MaBanner == maBanner);
@@ -77,3 +81,4 @@ public class BannersController : ControllerBase
 
 public record CreateBannerRequest(string MaBanner, string TieuDe, string? PhuDe, string? MucGiam, string? MaCode, string URLHinhAnh, string? DuongDan, int ThuTu, string LoaiBanner);
 public record UpdateBannerRequest(string TieuDe, string? PhuDe, string? MucGiam, string? MaCode, string URLHinhAnh, string? DuongDan, int ThuTu, string LoaiBanner);
+

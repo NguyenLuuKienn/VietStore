@@ -14,7 +14,7 @@ interface HomeProps {
 const Home: React.FC<HomeProps> = ({ navigateToList, navigateToDetail }) => {
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
   const [bestSellers, setBestSellers] = useState<Product[]>([]);
-  const [kidsProducts, setKidsProducts] = useState<Product[]>([]);
+  const [discountProducts, setDiscountProducts] = useState<Product[]>([]);
   const [otherProducts, setOtherProducts] = useState<Product[]>([]);
   const [promoBanners, setPromoBanners] = useState<PromoBannerData[]>([]);
   const [mainBanners, setMainBanners] = useState<Banner[]>([]);
@@ -28,28 +28,23 @@ const Home: React.FC<HomeProps> = ({ navigateToList, navigateToDetail }) => {
     const loadData = async () => {
       setLoading(true);
       const [allProducts, categories, promoB] = await Promise.all([
-        ApiService.getProducts(24, false),
+        ApiService.getProducts(30, false),
         ApiService.getCategories(),
         BannerService.getPromoBanners(true)
       ]);
 
-      const kidsCategory = categories.find((c: any) => {
-        const name = String(c.name || '').toLowerCase();
-        return name.includes('tr') && name.includes('em');
-      });
       const otherCategory = categories.find((c: any) => String(c.name || '').toLowerCase().includes('kh'));
 
-      const kidsCategoryId = kidsCategory?.id;
       const otherCategoryId = otherCategory?.id;
 
       const newP = allProducts.filter(p => p.isFeaturedNew).slice(0, 8);
       const bestP = allProducts.filter(p => p.isFeaturedBestseller).slice(0, 8);
-      const kidsP = kidsCategoryId ? allProducts.filter(p => p.category === kidsCategoryId).slice(0, 8) : [];
+      const discountP = allProducts.filter(p => p.isDiscounted && (p.discountAmount || 0) > 0).slice(0, 8);
       const otherP = otherCategoryId ? allProducts.filter(p => p.category === otherCategoryId).slice(0, 8) : [];
 
       setNewArrivals(newP.length > 0 ? newP : allProducts.slice(0, 8));
       setBestSellers(bestP.length > 0 ? bestP : allProducts.slice(0, 8));
-      setKidsProducts(kidsP);
+      setDiscountProducts(discountP);
       setOtherProducts(otherP);
       setPromoBanners(promoB);
       setLoading(false);
@@ -97,8 +92,8 @@ const Home: React.FC<HomeProps> = ({ navigateToList, navigateToDetail }) => {
         )}
 
         <ProductSlider 
-          title="Sản phẩm dành cho trẻ em" 
-          products={kidsProducts} 
+          title="Sản phẩm giảm giá" 
+          products={discountProducts} 
           isLoading={loading} 
           onProductClick={navigateToDetail}
         />

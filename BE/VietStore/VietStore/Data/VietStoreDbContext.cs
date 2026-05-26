@@ -17,9 +17,13 @@ public class VietStoreDbContext : DbContext
     public DbSet<KichThuocSanPham> KichThuocSanPham => Set<KichThuocSanPham>();
     public DbSet<DonHang> DonHang => Set<DonHang>();
     public DbSet<ChiTietDonHang> ChiTietDonHang => Set<ChiTietDonHang>();
+    public DbSet<GioHang> GioHang => Set<GioHang>();
+    public DbSet<ChiTietGioHang> ChiTietGioHang => Set<ChiTietGioHang>();
     public DbSet<Banner> Banner => Set<Banner>();
     public DbSet<KhuyenMai> KhuyenMai => Set<KhuyenMai>();
     public DbSet<ThongBao> ThongBao => Set<ThongBao>();
+    public DbSet<NhatKySanPham> NhatKySanPham => Set<NhatKySanPham>();
+    public DbSet<NhatKyDonHang> NhatKyDonHang => Set<NhatKyDonHang>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -39,6 +43,8 @@ public class VietStoreDbContext : DbContext
             entity.Property(x => x.TrangThai).HasMaxLength(20).HasDefaultValue("active");
             entity.Property(x => x.NgayThamGia).HasDefaultValueSql("GETDATE()");
             entity.Property(x => x.Quyen).HasDefaultValue(0);
+            entity.Property(x => x.EmailDaXacThuc).HasDefaultValue(true);
+            entity.Property(x => x.MaXacThucEmail).HasMaxLength(128);
         });
 
         modelBuilder.Entity<DanhMuc>(entity =>
@@ -72,8 +78,12 @@ public class VietStoreDbContext : DbContext
             entity.Property(x => x.MaNhaCungCap).HasMaxLength(50);
             entity.Property(x => x.TenSanPham).HasMaxLength(255).IsRequired();
             entity.Property(x => x.GiaBan).HasColumnType("decimal(18,2)").IsRequired();
+            entity.Property(x => x.IsGiamGia).HasDefaultValue(false);
+            entity.Property(x => x.SoTienGiam).HasColumnType("decimal(18,2)").HasDefaultValue(0);
+            entity.Property(x => x.ThongTinChiTiet).HasColumnType("nvarchar(max)");
             entity.Property(x => x.SoLuongTon).HasDefaultValue(0);
             entity.Property(x => x.SoLuotBan).HasDefaultValue(0);
+            entity.Property(x => x.IsVisible).HasDefaultValue(true);
             entity.Property(x => x.IsFeaturedNew).HasDefaultValue(false);
             entity.Property(x => x.IsFeaturedBestseller).HasDefaultValue(false);
             entity.Property(x => x.NgayTao).HasDefaultValueSql("GETDATE()");
@@ -159,6 +169,44 @@ public class VietStoreDbContext : DbContext
                 .OnDelete(DeleteBehavior.NoAction);
         });
 
+        modelBuilder.Entity<GioHang>(entity =>
+        {
+            entity.ToTable("GioHang");
+            entity.HasKey(x => x.MaGioHang);
+            entity.Property(x => x.MaGioHang).HasMaxLength(50);
+            entity.Property(x => x.MaNguoiDung).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.NgayCapNhat).HasDefaultValueSql("GETDATE()");
+
+            entity.HasOne(x => x.NguoiDung)
+                .WithMany(x => x.GioHangs)
+                .HasForeignKey(x => x.MaNguoiDung)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ChiTietGioHang>(entity =>
+        {
+            entity.ToTable("ChiTietGioHang");
+            entity.HasKey(x => x.MaChiTietGioHang);
+            entity.Property(x => x.MaChiTietGioHang).UseIdentityColumn();
+            entity.Property(x => x.MaGioHang).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.MaSanPham).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.KichThuoc).HasMaxLength(20).HasDefaultValue("M");
+            entity.Property(x => x.SoLuong).HasDefaultValue(1);
+            entity.Property(x => x.NgayCapNhat).HasDefaultValueSql("GETDATE()");
+
+            entity.HasOne(x => x.GioHang)
+                .WithMany(x => x.ChiTietGioHangs)
+                .HasForeignKey(x => x.MaGioHang)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.SanPham)
+                .WithMany(x => x.ChiTietGioHangs)
+                .HasForeignKey(x => x.MaSanPham)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            entity.HasIndex(x => new { x.MaGioHang, x.MaSanPham, x.KichThuoc }).IsUnique();
+        });
+
         modelBuilder.Entity<Banner>(entity =>
         {
             entity.ToTable("Banner");
@@ -206,6 +254,32 @@ public class VietStoreDbContext : DbContext
                 .WithMany(x => x.ThongBaos)
                 .HasForeignKey(x => x.MaNguoiDung)
                 .OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<NhatKySanPham>(entity =>
+        {
+            entity.ToTable("NhatKySanPham");
+            entity.HasKey(x => x.MaNhatKy);
+            entity.Property(x => x.MaNhatKy).UseIdentityColumn();
+            entity.Property(x => x.MaSanPham).HasMaxLength(50);
+            entity.Property(x => x.HanhDong).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.NoiDung).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.NguoiThucHien).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.VaiTro).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.ThoiGian).HasDefaultValueSql("GETDATE()");
+        });
+
+        modelBuilder.Entity<NhatKyDonHang>(entity =>
+        {
+            entity.ToTable("NhatKyDonHang");
+            entity.HasKey(x => x.MaNhatKy);
+            entity.Property(x => x.MaNhatKy).UseIdentityColumn();
+            entity.Property(x => x.MaDonHang).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.HanhDong).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.NoiDung).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.NguoiThucHien).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.VaiTro).HasMaxLength(50).IsRequired();
+            entity.Property(x => x.ThoiGian).HasDefaultValueSql("GETDATE()");
         });
     }
 }

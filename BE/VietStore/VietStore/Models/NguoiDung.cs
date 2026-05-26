@@ -13,7 +13,11 @@ public class NguoiDung
     public string TrangThai { get; set; } = null!;
     public DateTime NgayThamGia { get; set; }
     public int Quyen { get; set; }
+    public bool EmailDaXacThuc { get; set; } = true;
+    public string? MaXacThucEmail { get; set; }
+    public DateTime? HanXacThucEmail { get; set; }
 
     public ICollection<DonHang> DonHangs { get; set; } = new List<DonHang>();
     public ICollection<ThongBao> ThongBaos { get; set; } = new List<ThongBao>();
+    public ICollection<GioHang> GioHangs { get; set; } = new List<GioHang>();
 }

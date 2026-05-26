@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Download, CheckCircle2, Clock, Eye, X, UserMinus, Lock, Plus, Edit2, Trash2, Phone } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { CheckCircle2, Clock, Eye, X, UserMinus, Lock, Plus, Edit2, Trash2, Phone, History } from 'lucide-react';
 import { CartService } from '../../services/cartService';
 import Modal from '../../components/common/Modal';
 import { ApiService } from '../../services/apiService';
@@ -13,27 +14,6 @@ const ViewWrapper = ({ title, subtitle, children }: { title: string, subtitle: s
           <h1 className="text-[28px] font-[900] text-dark mb-2">{title}</h1>
           <p className="text-gray-500 font-medium">{subtitle}</p>
         </div>
-        <button 
-          onClick={async () => {
-             toast.info('Bắt đầu tải xuống dữ liệu JSON...');
-             const data = {
-               products: JSON.parse(localStorage.getItem('shop_products') || '[]'),
-               categories: JSON.parse(localStorage.getItem('shop_categories') || '[]'),
-               orders: JSON.parse(localStorage.getItem('shop_orders') || '[]'),
-               users_extended: JSON.parse(localStorage.getItem('shop_users_extended') || '{}'),
-             };
-             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-             const url = URL.createObjectURL(blob);
-             const a = document.createElement('a');
-             a.href = url;
-             a.download = `backup_${new Date().toISOString().split('T')[0]}.json`;
-             a.click();
-             URL.revokeObjectURL(url);
-          }}
-          className="bg-white border border-gray-200 text-dark px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-50 transition-all cursor-pointer shadow-sm"
-        >
-          <Download className="w-4 h-4" /> Xuất báo cáo (JSON Backup)
-        </button>
       </div>
       <div className="bg-white rounded-[20px] shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-gray-100 overflow-hidden">
         <div className="w-full overflow-x-auto">
@@ -48,6 +28,9 @@ export const AdminOrders: React.FC = () => {
   const [viewOrder, setViewOrder] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [isViewOrderLoading, setIsViewOrderLoading] = useState(false);
+  const [isOrderHistoryOpen, setIsOrderHistoryOpen] = useState(false);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
+  const [isOrderHistoryLoading, setIsOrderHistoryLoading] = useState(false);
 
   const loadOrders = async () => {
     const data = await ApiService.getOrders();
@@ -60,6 +43,23 @@ export const AdminOrders: React.FC = () => {
   }, []);
 
   const closeModal = () => setViewOrder(null);
+
+  const loadOrderHistory = async () => {
+    setIsOrderHistoryLoading(true);
+    try {
+      const rows = await ApiService.getOrderCrudHistory(120);
+      setOrderHistory(Array.isArray(rows) ? rows : []);
+    } catch {
+      toast.error('Không tải được lịch sử đơn hàng');
+    } finally {
+      setIsOrderHistoryLoading(false);
+    }
+  };
+
+  const openOrderHistory = async () => {
+    setIsOrderHistoryOpen(true);
+    await loadOrderHistory();
+  };
 
   const openViewOrder = async (order: any) => {
     setViewOrder(order);
@@ -116,6 +116,7 @@ export const AdminOrders: React.FC = () => {
 
       setViewOrder(null);
       loadOrders();
+      loadOrderHistory();
       toast.success('Cập nhật trạng thái đơn hàng thành công!');
     } catch (err) {
       toast.error('Lỗi khi cập nhật trạng thái');
@@ -138,6 +139,15 @@ export const AdminOrders: React.FC = () => {
 
   return (
     <ViewWrapper title="Quản lý Đơn hàng" subtitle="Theo dõi và xử lý các đơn hàng hệ thống.">
+      <div className="px-6 pt-5 pb-3 flex justify-end">
+        <button
+          onClick={openOrderHistory}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-white font-bold text-sm border-none cursor-pointer hover:brightness-95"
+        >
+          <History className="w-4 h-4" />
+          History
+        </button>
+      </div>
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="bg-gray-50 border-b border-gray-100">
@@ -263,6 +273,48 @@ export const AdminOrders: React.FC = () => {
           </div>
         )}
       </Modal>
+      {isOrderHistoryOpen && createPortal(
+        <div className="fixed inset-0 z-[70]">
+          <div className="absolute inset-0 bg-black/35" onClick={() => setIsOrderHistoryOpen(false)}></div>
+          <aside className="absolute top-0 right-0 h-full w-full max-w-[420px] bg-white shadow-2xl border-l border-gray-100 flex flex-col">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+              <h3 className="text-[30px] font-extrabold text-dark leading-none">Lịch sử thao tác đơn hàng</h3>
+              <button
+                onClick={() => setIsOrderHistoryOpen(false)}
+                className="w-9 h-9 rounded-xl border-none bg-gray-100 text-gray-500 hover:bg-gray-200 cursor-pointer flex items-center justify-center"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {isOrderHistoryLoading ? (
+                <div className="py-10 flex justify-center">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : orderHistory.length === 0 ? (
+                <div className="text-sm text-gray-500 text-center py-10">Chưa có lịch sử thao tác đơn hàng</div>
+              ) : (
+                orderHistory.map((item: any) => (
+                  <div key={item.maNhatKy || item.MaNhatKy} className="border border-gray-100 rounded-2xl p-4">
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="font-bold text-dark">{item.nguoiThucHien || item.NguoiThucHien || 'Hệ thống'}</div>
+                      <span className="px-2 py-1 bg-primary/10 text-primary rounded-full text-[11px] font-bold">
+                        {item.vaiTro || item.VaiTro || 'Unknown'}
+                      </span>
+                    </div>
+                    <div className="text-sm font-semibold text-dark mb-1">
+                      {(item.hanhDong || item.HanhDong || '').toUpperCase()} - #{(item.maDonHang || item.MaDonHang || '').slice(0, 10)}
+                    </div>
+                    <div className="text-sm text-gray-600 mb-2">{item.noiDung || item.NoiDung || ''}</div>
+                    <div className="text-xs text-gray-400">{new Date(item.thoiGian || item.ThoiGian || Date.now()).toLocaleString('vi-VN')}</div>
+                  </div>
+                ))
+              )}
+            </div>
+          </aside>
+        </div>,
+        document.body
+      )}
     </ViewWrapper>
   );
 };
@@ -274,6 +326,10 @@ export const AdminCustomers: React.FC = () => {
   const isAdminUser = (u: any) => {
     const roleValue = String(u.role ?? u.Role ?? u.quyen ?? u.Quyen ?? u.maQuyen ?? u.MaQuyen ?? '').trim().toLowerCase();
     return roleValue === 'admin' || roleValue === '1';
+  };
+  const isStaffUser = (u: any) => {
+    const roleValue = String(u.role ?? u.Role ?? u.quyen ?? u.Quyen ?? u.maQuyen ?? u.MaQuyen ?? '').trim().toLowerCase();
+    return roleValue === 'staff' || roleValue === '2';
   };
 
   const normalizeStatus = (value: any): 'active' | 'inactive' | 'locked' => {
@@ -298,7 +354,7 @@ export const AdminCustomers: React.FC = () => {
     ]);
 
     const mapped = (users || [])
-      .filter((u: any) => !isAdminUser(u))
+      .filter((u: any) => !isAdminUser(u) && !isStaffUser(u))
       .map((u: any) => {
         const id = String(u.id ?? u.maNguoiDung ?? u.MaNguoiDung ?? '');
         const userOrders = (orders || []).filter((o: any) => String(o.userId ?? '') === id);
@@ -1065,5 +1121,6 @@ export const AdminFinance: React.FC = () => {
     </ViewWrapper>
   );
 };
+
 
 

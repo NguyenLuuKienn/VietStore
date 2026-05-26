@@ -112,6 +112,51 @@ namespace VietStore.Migrations
                     b.ToTable("ChiTietDonHang", (string)null);
                 });
 
+            modelBuilder.Entity("VietStore.Models.ChiTietGioHang", b =>
+                {
+                    b.Property<int>("MaChiTietGioHang")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MaChiTietGioHang"));
+
+                    b.Property<string>("KichThuoc")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("M");
+
+                    b.Property<string>("MaGioHang")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MaSanPham")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("NgayCapNhat")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<int>("SoLuong")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.HasKey("MaChiTietGioHang");
+
+                    b.HasIndex("MaSanPham");
+
+                    b.HasIndex("MaGioHang", "MaSanPham", "KichThuoc")
+                        .IsUnique();
+
+                    b.ToTable("ChiTietGioHang", (string)null);
+                });
+
             modelBuilder.Entity("VietStore.Models.DanhMuc", b =>
                 {
                     b.Property<string>("MaDanhMuc")
@@ -180,6 +225,29 @@ namespace VietStore.Migrations
                     b.HasIndex("MaNguoiDung");
 
                     b.ToTable("DonHang", (string)null);
+                });
+
+            modelBuilder.Entity("VietStore.Models.GioHang", b =>
+                {
+                    b.Property<string>("MaGioHang")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MaNguoiDung")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("NgayCapNhat")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.HasKey("MaGioHang");
+
+                    b.HasIndex("MaNguoiDung");
+
+                    b.ToTable("GioHang", (string)null);
                 });
 
             modelBuilder.Entity("VietStore.Models.HinhAnhSanPham", b =>
@@ -389,6 +457,91 @@ namespace VietStore.Migrations
                     b.ToTable("NhaCungCap", (string)null);
                 });
 
+            modelBuilder.Entity("VietStore.Models.NhatKyDonHang", b =>
+                {
+                    b.Property<int>("MaNhatKy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MaNhatKy"));
+
+                    b.Property<string>("HanhDong")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MaDonHang")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("NguoiThucHien")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NoiDung")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("ThoiGian")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<string>("VaiTro")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("MaNhatKy");
+
+                    b.ToTable("NhatKyDonHang", (string)null);
+                });
+
+            modelBuilder.Entity("VietStore.Models.NhatKySanPham", b =>
+                {
+                    b.Property<int>("MaNhatKy")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MaNhatKy"));
+
+                    b.Property<string>("HanhDong")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("MaSanPham")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("NguoiThucHien")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("NoiDung")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime>("ThoiGian")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETDATE()");
+
+                    b.Property<string>("VaiTro")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("MaNhatKy");
+
+                    b.ToTable("NhatKySanPham", (string)null);
+                });
+
             modelBuilder.Entity("VietStore.Models.SanPham", b =>
                 {
                     b.Property<string>("MaSanPham")
@@ -407,6 +560,14 @@ namespace VietStore.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
+
+                    b.Property<bool>("IsGiamGia")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsVisible")
+                        .HasColumnType("bit");
 
                     b.Property<string>("MaDanhMuc")
                         .IsRequired()
@@ -435,10 +596,18 @@ namespace VietStore.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<decimal>("SoTienGiam")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<string>("TenSanPham")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("ThongTinChiTiet")
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("MaSanPham");
 
@@ -510,12 +679,42 @@ namespace VietStore.Migrations
                     b.Navigation("SanPham");
                 });
 
+            modelBuilder.Entity("VietStore.Models.ChiTietGioHang", b =>
+                {
+                    b.HasOne("VietStore.Models.GioHang", "GioHang")
+                        .WithMany("ChiTietGioHangs")
+                        .HasForeignKey("MaGioHang")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VietStore.Models.SanPham", "SanPham")
+                        .WithMany("ChiTietGioHangs")
+                        .HasForeignKey("MaSanPham")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("GioHang");
+
+                    b.Navigation("SanPham");
+                });
+
             modelBuilder.Entity("VietStore.Models.DonHang", b =>
                 {
                     b.HasOne("VietStore.Models.NguoiDung", "NguoiDung")
                         .WithMany("DonHangs")
                         .HasForeignKey("MaNguoiDung")
                         .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("NguoiDung");
+                });
+
+            modelBuilder.Entity("VietStore.Models.GioHang", b =>
+                {
+                    b.HasOne("VietStore.Models.NguoiDung", "NguoiDung")
+                        .WithMany("GioHangs")
+                        .HasForeignKey("MaNguoiDung")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("NguoiDung");
                 });
@@ -580,9 +779,16 @@ namespace VietStore.Migrations
                     b.Navigation("ChiTietDonHangs");
                 });
 
+            modelBuilder.Entity("VietStore.Models.GioHang", b =>
+                {
+                    b.Navigation("ChiTietGioHangs");
+                });
+
             modelBuilder.Entity("VietStore.Models.NguoiDung", b =>
                 {
                     b.Navigation("DonHangs");
+
+                    b.Navigation("GioHangs");
 
                     b.Navigation("ThongBaos");
                 });
@@ -595,6 +801,8 @@ namespace VietStore.Migrations
             modelBuilder.Entity("VietStore.Models.SanPham", b =>
                 {
                     b.Navigation("ChiTietDonHangs");
+
+                    b.Navigation("ChiTietGioHangs");
 
                     b.Navigation("HinhAnhSanPhams");
 

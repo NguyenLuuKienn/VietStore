@@ -1,7 +1,9 @@
 ﻿import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { History, X, Edit, Plus, Trash2 } from 'lucide-react';
 import { CartService } from '../../services/cartService';
 import Modal from '../../components/common/Modal';
+import RichTextEditor from '../../components/common/RichTextEditor';
 import { ApiService } from '../../services/apiService';
 import { Product } from '../../types';
 import { toast } from '../../lib/toast';
@@ -11,8 +13,17 @@ const mockHistory = [
   { id: 1, user: 'Nguyễn Tuấn', role: 'Super Admin', action: 'System started', date: '18/04/2026 14:30' },
 ];
 
+type ProductHistoryItem = {
+  id: number | string;
+  user: string;
+  role: string;
+  action: string;
+  date: string;
+};
+
 const Products: React.FC = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historyItems, setHistoryItems] = useState<ProductHistoryItem[]>([]);
   const [modalConfig, setModalConfig] = useState<{type: 'none' | 'add' | 'edit' | 'delete', product?: Product}>({type: 'none'});
   const [products, setProducts] = useState<Product[]>([]);
   const [pageSize, setPageSize] = useState(20);
@@ -21,10 +32,14 @@ const Products: React.FC = () => {
     name: '', 
     category: '', 
     price: '', 
+    isDiscounted: false,
+    discountAmount: '',
     description: '', 
+    detailedInfo: '',
     images: '',
     isFeaturedNew: false,
     isFeaturedBestseller: false,
+    isVisible: true,
     stockQuantity: '0',
     supplier: ''
   });
@@ -33,8 +48,24 @@ const Products: React.FC = () => {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [isEditModalLoading, setIsEditModalLoading] = useState(false);
 
+  const loadHistory = async () => {
+    try {
+      const data = await ApiService.getProductCrudHistory(200);
+      const mapped = (data || []).map((x: any) => ({
+        id: x.maNhatKy || x.MaNhatKy || Date.now(),
+        user: x.nguoiThucHien || x.NguoiThucHien || 'Hệ thống',
+        role: x.vaiTro || x.VaiTro || 'Unknown',
+        action: x.noiDung || x.NoiDung || x.hanhDong || x.HanhDong || '',
+        date: x.thoiGian || x.ThoiGian ? new Date(x.thoiGian || x.ThoiGian).toLocaleString('vi-VN') : ''
+      }));
+      setHistoryItems(mapped.length > 0 ? mapped : mockHistory);
+    } catch {
+      setHistoryItems(mockHistory);
+    }
+  };
+
   const loadProducts = async (size = pageSize) => {
-    const data = await ApiService.getProducts(size);
+    const data = await ApiService.getProducts(size, false, true);
     setProducts((data as Product[]).map((p) => ({
       ...p,
       images: p.images?.length ? [p.images[0]] : []
@@ -72,10 +103,14 @@ const Products: React.FC = () => {
       name: '', 
       category: '', 
       price: '', 
+      isDiscounted: false,
+      discountAmount: '',
       description: '', 
+      detailedInfo: '',
       images: '',
       isFeaturedNew: false,
       isFeaturedBestseller: false,
+      isVisible: true,
       stockQuantity: '0',
       supplier: suppliers[0]?.id || suppliers[0]?.maNhaCungCap || suppliers[0]?.MaNhaCungCap || ''
     });
@@ -132,10 +167,14 @@ const Products: React.FC = () => {
       name: formData.name,
       category: formData.category,
       price: formData.price,
+      isDiscounted: formData.isDiscounted,
+      discountAmount: Number(formData.discountAmount || 0),
       description: formData.description,
+      detailedInfo: formData.detailedInfo,
       images: formData.images ? formData.images.split('|||').map(s => s.trim()).filter(Boolean).slice(0, 6) : [],
       isFeaturedNew: formData.isFeaturedNew,
       isFeaturedBestseller: formData.isFeaturedBestseller,
+      isVisible: formData.isVisible,
       stockQuantity: parseInt(formData.stockQuantity),
       supplier: formData.supplier
     };
@@ -144,6 +183,7 @@ const Products: React.FC = () => {
     window.dispatchEvent(new Event('admin-data-changed'));
     closeModal();
     loadProducts();
+    if (isHistoryOpen) loadHistory();
     toast.success('Thêm sản phẩm thành công');
   } catch {
     toast.error('Thêm sản phẩm thất bại');
@@ -157,10 +197,14 @@ const Products: React.FC = () => {
       name: formData.name,
       category: formData.category,
       price: formData.price,
+      isDiscounted: formData.isDiscounted,
+      discountAmount: Number(formData.discountAmount || 0),
       description: formData.description,
+      detailedInfo: formData.detailedInfo,
       images: formData.images ? formData.images.split('|||').map(s => s.trim()).filter(Boolean).slice(0, 6) : [],
       isFeaturedNew: formData.isFeaturedNew,
       isFeaturedBestseller: formData.isFeaturedBestseller,
+      isVisible: formData.isVisible,
       stockQuantity: parseInt(formData.stockQuantity),
       supplier: formData.supplier
     };
@@ -168,6 +212,7 @@ const Products: React.FC = () => {
     await ApiService.updateProduct(modalConfig.product.id, productData);
     window.dispatchEvent(new Event('admin-data-changed'));
     closeModal();
+    if (isHistoryOpen) loadHistory();
     toast.success('Cập nhật sản phẩm thành công');
   } catch {
     toast.error('Cập nhật sản phẩm thất bại');
@@ -187,6 +232,7 @@ const Products: React.FC = () => {
       await ApiService.deleteProduct(modalConfig.product.id);
       window.dispatchEvent(new Event('admin-data-changed'));
       setProducts(prev => prev.filter(p => p.id !== modalConfig.product!.id));
+      if (isHistoryOpen) loadHistory();
       closeModal();
       toast.success('Xóa sản phẩm thành công');
     } catch (err) {
@@ -215,10 +261,14 @@ const Products: React.FC = () => {
         name: source.name,
         category: source.category,
         price: rawPrice,
+        isDiscounted: Boolean((source as any).isDiscounted ?? (source as any).IsGiamGia) || Number((source as any).discountAmount || (source as any).SoTienGiam || 0) > 0,
+        discountAmount: String((source as any).discountAmount || (source as any).SoTienGiam || ''),
         description: source.description || '',
+        detailedInfo: (source as any).detailedInfo || (source as any).thongTinChiTiet || '',
         images: (source.images || []).join('|||'),
         isFeaturedNew: source.isFeaturedNew || false,
         isFeaturedBestseller: source.isFeaturedBestseller || false,
+        isVisible: (source as any).isVisible ?? true,
         stockQuantity: (source.stockQuantity || 0).toString(),
         supplier: source.supplier || suppliers[0]?.id || suppliers[0]?.maNhaCungCap || suppliers[0]?.MaNhaCungCap || ''
       });
@@ -239,6 +289,15 @@ const Products: React.FC = () => {
           <p className="text-gray-500 font-medium">Danh sách các sản phẩm đang được bán.</p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              setIsHistoryOpen(true);
+              loadHistory();
+            }}
+            className="bg-white border border-gray-200 text-dark px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-50 transition-all cursor-pointer shadow-sm"
+          >
+            <History className="w-5 h-5" /> History
+          </button>
           <button 
             onClick={() => setModalConfig({type: 'add'})}
             className="bg-primary text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 hover:bg-opacity-90 transition-all border-none cursor-pointer shadow-sm"
@@ -276,6 +335,9 @@ const Products: React.FC = () => {
                           )}
                           {item.isFeaturedBestseller && (
                             <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-amber-100 text-amber-600 rounded-full">Best</span>
+                          )}
+                          {item.isVisible === false && (
+                            <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 bg-gray-200 text-gray-700 rounded-full">Ẩn</span>
                           )}
                         </div>
                       </div>
@@ -364,13 +426,62 @@ const Products: React.FC = () => {
             </div>
 
             <div>
+              <label className="block text-sm font-bold text-dark mb-2">Giảm giá</label>
+              <label className="flex items-center gap-2 cursor-pointer h-[44px]">
+                <input
+                  type="checkbox"
+                  checked={formData.isDiscounted}
+                  onChange={e =>
+                    setFormData({
+                      ...formData,
+                      isDiscounted: e.target.checked,
+                      discountAmount: e.target.checked ? formData.discountAmount : ''
+                    })
+                  }
+                  className="w-5 h-5 accent-primary"
+                />
+                <span className="text-sm font-bold text-dark">Bật giảm giá cho sản phẩm này</span>
+              </label>
+            </div>
+
+            {formData.isDiscounted && (
+              <div>
+                <label className="block text-sm font-bold text-dark mb-2">Số tiền giảm (VNĐ) *</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={Number(formData.price || 0)}
+                  value={formData.discountAmount}
+                  onChange={e => setFormData({ ...formData, discountAmount: e.target.value })}
+                  required={formData.isDiscounted}
+                  className="w-full px-4 py-2.5 rounded-xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-primary transition-all outline-none"
+                />
+              </div>
+            )}
+
+            <div>
               <label className="block text-sm font-bold text-dark mb-2">Số lượng trong kho *</label>
-              <input type="number" value={formData.stockQuantity} onChange={e => setFormData({...formData, stockQuantity: e.target.value})} required className="w-full px-4 py-2.5 rounded-xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-primary transition-all outline-none" />
+              <input type="number" min={0} value={formData.stockQuantity} onChange={e => setFormData({...formData, stockQuantity: e.target.value})} required className="w-full px-4 py-2.5 rounded-xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-primary transition-all outline-none" />
             </div>
 
             <div className="col-span-2">
               <label className="block text-sm font-bold text-dark mb-2">Mô tả sản phẩm</label>
-              <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full px-4 py-2.5 rounded-xl border-2 border-gray-100 bg-gray-50 focus:bg-white focus:border-primary transition-all outline-none"></textarea>
+              <RichTextEditor
+                value={formData.description}
+                onChange={(html) => setFormData({ ...formData, description: html })}
+                placeholder="Nhập mô tả sản phẩm..."
+                minHeight={140}
+              />
+            </div>
+
+            <div className="col-span-2">
+              <label className="block text-sm font-bold text-dark mb-2">Thông tin chi tiết sản phẩm</label>
+              <RichTextEditor
+                value={formData.detailedInfo}
+                onChange={(html) => setFormData({ ...formData, detailedInfo: html })}
+                placeholder="Nhập thông tin chi tiết, bảng thông số, chất liệu, hướng dẫn sử dụng..."
+                minHeight={220}
+              />
             </div>
 
             <div className="col-span-2">
@@ -410,6 +521,10 @@ const Products: React.FC = () => {
             
             <div className="col-span-2 flex items-center gap-6 p-4 bg-gray-50 rounded-xl border border-gray-100">
                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={formData.isVisible} onChange={e => setFormData({...formData, isVisible: e.target.checked})} className="w-5 h-5 accent-primary" />
+                  <span className="text-sm font-bold text-dark text-nowrap">Hiển thị sản phẩm</span>
+               </label>
+               <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={formData.isFeaturedNew} onChange={e => setFormData({...formData, isFeaturedNew: e.target.checked})} className="w-5 h-5 accent-primary" />
                   <span className="text-sm font-bold text-dark text-nowrap">Sản phẩm mới</span>
                </label>
@@ -444,10 +559,49 @@ const Products: React.FC = () => {
           </form>
         )}
       </Modal>
+
+      {isHistoryOpen && createPortal(
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-40"
+            onClick={() => setIsHistoryOpen(false)}
+          />
+          <aside className="fixed right-0 top-0 h-full w-[380px] max-w-[92vw] bg-white border-l border-gray-200 shadow-2xl z-[70] flex flex-col">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-lg font-[900] text-dark">Lịch sử CRUD sản phẩm</h3>
+              <button
+                onClick={() => setIsHistoryOpen(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 border-none bg-transparent cursor-pointer"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {historyItems.length === 0 ? (
+                <p className="text-sm text-gray-500">Chưa có lịch sử thao tác.</p>
+              ) : (
+                historyItems.map((item) => (
+                  <div key={item.id} className="p-3 rounded-xl border border-gray-100 bg-gray-50">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-bold text-dark">{item.user}</p>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">{item.role}</span>
+                    </div>
+                    <p className="text-sm text-gray-700 font-medium">{item.action}</p>
+                    <p className="text-xs text-gray-500 mt-1">{item.date}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </aside>
+        </>,
+        document.body
+      )}
     </div>
   );
 };
 
 export default Products;
+
 
 

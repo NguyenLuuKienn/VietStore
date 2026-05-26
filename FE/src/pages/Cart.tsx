@@ -1,6 +1,8 @@
-import React from 'react';
+﻿import React from 'react';
 import { Trash2, Plus, Minus, ArrowLeft } from 'lucide-react';
 import { CartService } from '../services/cartService';
+import { AuthService } from '../services/authService';
+import { SystemConfigService } from '../services/systemConfigService';
 
 interface CartProps {
   onBack: () => void;
@@ -10,15 +12,36 @@ interface CartProps {
 
 const Cart: React.FC<CartProps> = ({ onBack, navigateToHome, navigateToCheckout }) => {
   const [items, setItems] = React.useState(CartService.getCartItems());
-  const subTotal = CartService.getCartTotal();
-  const shipping = 30000;
-  const total = items.length > 0 ? subTotal + shipping : 0;
+  const [selectedIds, setSelectedIds] = React.useState<number[]>([]);
+  const [shipping, setShipping] = React.useState(SystemConfigService.getShippingFee());
+
+  const selectedItems = React.useMemo(
+    () => items.filter((item) => selectedIds.includes(item.id)),
+    [items, selectedIds]
+  );
+
+  const subTotal = selectedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const total = selectedItems.length > 0 ? subTotal + shipping : 0;
+  const allChecked = items.length > 0 && selectedIds.length === items.length;
 
   React.useEffect(() => {
     const updateItems = () => setItems([...CartService.getCartItems()]);
+    const updateShipping = () => setShipping(SystemConfigService.getShippingFee());
     window.addEventListener('cart-updated', updateItems);
-    return () => window.removeEventListener('cart-updated', updateItems);
+    window.addEventListener('shipping-fee-updated', updateShipping);
+    return () => {
+      window.removeEventListener('cart-updated', updateItems);
+      window.removeEventListener('shipping-fee-updated', updateShipping);
+    };
   }, []);
+
+  React.useEffect(() => {
+    setSelectedIds((prev) => {
+      const valid = prev.filter((id) => items.some((x) => x.id === id));
+      if (valid.length > 0) return valid;
+      return items.map((x) => x.id);
+    });
+  }, [items]);
 
   const handleUpdateQuantity = async (id: number, currentQty: number, delta: number) => {
     const newQty = currentQty + delta;
@@ -29,6 +52,20 @@ const Cart: React.FC<CartProps> = ({ onBack, navigateToHome, navigateToCheckout 
 
   const handleRemoveItem = async (id: number) => {
     await CartService.removeItem(id);
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => (prev.length === items.length ? [] : items.map((x) => x.id)));
+  };
+
+  const toggleSelectOne = (id: number) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const goCheckoutWithSelection = () => {
+    const userId = AuthService.getUser()?.id || 'guest';
+    localStorage.setItem(`checkout_selection:${userId}`, JSON.stringify(selectedIds));
+    navigateToCheckout();
   };
 
   return (
@@ -51,53 +88,70 @@ const Cart: React.FC<CartProps> = ({ onBack, navigateToHome, navigateToCheckout 
                 </button>
               </div>
             ) : (
-              items.map(item => (
-                <div key={item.id} className="flex flex-col sm:flex-row items-center sm:items-start gap-4 py-6 border-b border-gray-100 last:border-0 last:pb-0 first:pt-0">
-                  <img src={item.image} alt={item.name} className="w-24 h-32 object-cover rounded-[10px]" referrerPolicy="no-referrer" />
-                  <div className="flex-1 flex flex-col items-center sm:items-start text-center sm:text-left w-full h-full">
-                    <h3 className="font-bold text-dark text-[16px] mb-1 leading-snug">{item.name}</h3>
-                    <span className="text-sm text-gray-500 mb-2 font-medium bg-gray-50 px-2 py-0.5 rounded border border-gray-200">Size: {item.size}</span>
-                    <div className="font-[800] text-primary text-[18px] sm:mt-auto">{CartService.formatPrice(item.price)}</div>
-                  </div>
-                  
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto h-full gap-3 mt-4 sm:mt-0">
-                    <div className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-[10px] border border-gray-200 shadow-sm">
-                      <button 
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity, -1)}
-                        className="bg-white rounded-md border border-gray-200 p-1 cursor-pointer text-gray-500 hover:text-primary hover:border-primary transition-colors"
+              <>
+                <div className="flex items-center justify-between pb-4 mb-2 border-b border-gray-100">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-dark cursor-pointer">
+                    <input type="checkbox" checked={allChecked} onChange={toggleSelectAll} className="w-4 h-4 accent-primary cursor-pointer" />
+                    Chọn tất cả
+                  </label>
+                  <span className="text-xs text-gray-500 font-medium">Đã chọn {selectedItems.length}/{items.length} sản phẩm</span>
+                </div>
+
+                {items.map((item) => (
+                  <div key={item.id} className="flex flex-col sm:flex-row items-center sm:items-start gap-4 py-6 border-b border-gray-100 last:border-0 last:pb-0 first:pt-0">
+                    <div className="self-center sm:self-start pt-1">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item.id)}
+                        onChange={() => toggleSelectOne(item.id)}
+                        className="w-4 h-4 accent-primary cursor-pointer"
+                      />
+                    </div>
+
+                    <img src={item.image || 'https://placehold.co/200x260?text=No+Image'} alt={item.name} className="w-24 h-32 object-cover rounded-[10px]" referrerPolicy="no-referrer" />
+                    <div className="flex-1 flex flex-col items-center sm:items-start text-center sm:text-left w-full h-full">
+                      <h3 className="font-bold text-dark text-[16px] mb-1 leading-snug">{item.name}</h3>
+                      <span className="text-sm text-gray-500 mb-2 font-medium bg-gray-50 px-2 py-0.5 rounded border border-gray-200">Size: {item.size}</span>
+                      <div className="font-[800] text-primary text-[18px] sm:mt-auto">{CartService.formatPrice(item.price)}</div>
+                    </div>
+
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto h-full gap-3 mt-4 sm:mt-0">
+                      <div className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-[10px] border border-gray-200 shadow-sm">
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity, -1)}
+                          className="bg-white rounded-md border border-gray-200 p-1 cursor-pointer text-gray-500 hover:text-primary hover:border-primary transition-colors"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="font-[800] w-6 text-center text-dark text-[15px]">{item.quantity}</span>
+                        <button
+                          onClick={() => handleUpdateQuantity(item.id, item.quantity, 1)}
+                          className="bg-white rounded-md border border-gray-200 p-1 cursor-pointer text-gray-500 hover:text-primary hover:border-primary transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveItem(item.id)}
+                        className="text-red-500 text-sm font-semibold hover:bg-red-50 px-3 py-1.5 rounded-md flex items-center gap-1.5 border-none bg-transparent cursor-pointer transition-colors sm:mt-auto"
                       >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="font-[800] w-6 text-center text-dark text-[15px]">{item.quantity}</span>
-                      <button 
-                        onClick={() => handleUpdateQuantity(item.id, item.quantity, 1)}
-                        className="bg-white rounded-md border border-gray-200 p-1 cursor-pointer text-gray-500 hover:text-primary hover:border-primary transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
+                        <Trash2 className="w-[18px] h-[18px]" /> Xóa
                       </button>
                     </div>
-                    <button 
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="text-red-500 text-sm font-semibold hover:bg-red-50 px-3 py-1.5 rounded-md flex items-center gap-1.5 border-none bg-transparent cursor-pointer transition-colors sm:mt-auto"
-                    >
-                      <Trash2 className="w-[18px] h-[18px]" /> Xóa
-                    </button>
                   </div>
-                </div>
-              ))
+                ))}
+              </>
             )}
           </div>
 
           {items.length > 0 && (
             <aside className="w-full lg:w-[350px]">
               <div className="bg-white rounded-[20px] p-6 shadow-[0_8px_24px_rgba(100,197,227,0.1)] border border-primary/20 sticky top-[140px]">
-                <h3 className="text-[18px] font-[800] text-dark mb-6 flex items-center gap-2">
-                  Tóm tắt đơn hàng
-                </h3>
-                
+                <h3 className="text-[18px] font-[800] text-dark mb-6 flex items-center gap-2">Tóm tắt đơn hàng</h3>
+
                 <div className="space-y-4 mb-6 text-[15px]">
                   <div className="flex justify-between text-gray-600 font-medium">
-                    <span>Tạm tính ({items.length} sp)</span>
+                    <span>Tạm tính ({selectedItems.length} sp)</span>
                     <span className="font-bold text-dark">{CartService.formatPrice(subTotal)}</span>
                   </div>
                   <div className="flex justify-between text-gray-600 font-medium">
@@ -110,8 +164,12 @@ const Cart: React.FC<CartProps> = ({ onBack, navigateToHome, navigateToCheckout 
                   </div>
                 </div>
 
-                <button onClick={navigateToCheckout} className="w-full py-4 bg-primary text-white font-bold text-[16px] rounded-[12px] hover:bg-opacity-90 shadow-[0_4px_12px_rgba(100,197,227,0.3)] transition-all cursor-pointer border-none mb-3">
-                  Tiến Hành Thanh Toán
+                <button
+                  onClick={goCheckoutWithSelection}
+                  disabled={selectedItems.length === 0}
+                  className="w-full py-4 bg-primary text-white font-bold text-[16px] rounded-[12px] hover:bg-opacity-90 shadow-[0_4px_12px_rgba(100,197,227,0.3)] transition-all cursor-pointer border-none mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Tiến hành thanh toán
                 </button>
                 <button onClick={navigateToHome} className="w-full py-3 bg-primary/10 text-primary font-bold text-[15px] rounded-[12px] hover:bg-primary hover:text-white transition-all cursor-pointer border-none">
                   Tiếp tục mua hàng

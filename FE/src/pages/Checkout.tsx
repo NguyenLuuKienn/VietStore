@@ -5,6 +5,7 @@ import { AuthService } from '../services/authService';
 import { ApiService } from '../services/apiService';
 import { AccountService } from '../services/accountService';
 import { HttpError } from '../services/httpClient';
+import { SystemConfigService } from '../services/systemConfigService';
 import { toast } from '../lib/toast';
 
 interface CheckoutProps {
@@ -22,12 +23,13 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
   const [voucherCode, setVoucherCode] = useState('');
   const [discount, setDiscount] = useState(0);
   const [voucherError, setVoucherError] = useState('');
-  const [appliedVoucher, setAppliedVoucher] = useState<{code: string, amount: number} | null>(null);
+  const [appliedVoucher, setAppliedVoucher] = useState<{ code: string; amount: number } | null>(null);
+  const [shipping, setShipping] = useState(SystemConfigService.getShippingFee());
 
   useEffect(() => {
     const user = AuthService.getUser();
     if (user?.id) {
-      AccountService.getProfile().then(profile => {
+      AccountService.getProfile().then((profile) => {
         if (profile) {
           setFullName(profile.name || '');
           setPhone(profile.phone || '');
@@ -37,10 +39,31 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
     }
   }, []);
 
-  const items = CartService.getCartItems();
-  const subTotal = CartService.getCartTotal();
-  const shipping = 30000;
-  
+  useEffect(() => {
+    const updateShipping = () => setShipping(SystemConfigService.getShippingFee());
+    window.addEventListener('shipping-fee-updated', updateShipping);
+    return () => window.removeEventListener('shipping-fee-updated', updateShipping);
+  }, []);
+
+  const allItems = CartService.getCartItems();
+  const userId = AuthService.getUser()?.id || 'guest';
+  const selectionKey = `checkout_selection:${userId}`;
+
+  const selectedIds = (() => {
+    try {
+      const raw = localStorage.getItem(selectionKey);
+      if (!raw) return allItems.map((x) => x.id);
+      const ids = JSON.parse(raw);
+      if (!Array.isArray(ids)) return allItems.map((x) => x.id);
+      return ids.map((x) => Number(x)).filter((x) => Number.isFinite(x));
+    } catch {
+      return allItems.map((x) => x.id);
+    }
+  })();
+
+  const items = allItems.filter((item) => selectedIds.includes(item.id));
+  const subTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
   const handleApplyVoucher = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!voucherCode.trim()) return;
@@ -54,10 +77,10 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
         setAppliedVoucher({ code, amount });
         setVoucherError('');
       } else {
-        setVoucherError(rs?.Message || rs?.message || 'Ma giam gia khong hop le hoac da het han');
+        setVoucherError(rs?.Message || rs?.message || 'Mã giảm giá không hợp lệ hoặc đã hết hạn');
       }
     } catch {
-      setVoucherError('Khong the kiem tra ma giam gia luc nay');
+      setVoucherError('Không thể kiểm tra mã giảm giá lúc này');
     }
   };
 
@@ -68,19 +91,24 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
     setVoucherError('');
   };
 
-  const total = items.length > 0 ? (subTotal + shipping - discount) : 0;
+  const total = items.length > 0 ? subTotal + shipping - discount : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (items.length === 0) {
+      toast.error('Vui lòng chọn ít nhất 1 sản phẩm từ giỏ hàng để thanh toán');
+      return;
+    }
+
     setIsSubmitting(true);
-    
+
     const user = AuthService.getUser();
     const orderData = {
       userId: user?.id || 'anonymous',
       customerName: fullName,
       phone,
       address,
-      items: items.map(item => ({
+      items: items.map((item) => ({
         productId: item.productId.toString(),
         name: item.name,
         price: item.price,
@@ -100,21 +128,38 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
       if (paymentMethod === 'vnpay') {
         const created: any = await ApiService.createOrder(orderData);
         const orderId = created?.id || created?.maDonHang || created?.MaDonHang;
-        if (!orderId) throw new Error('Khong tao duoc don hang truoc khi thanh toan VNPAY');
+        if (!orderId) throw new Error('Không tạo được đơn hàng trước khi thanh toán VNPAY');
         const rs = await ApiService.createVnpayPayment({
           orderId,
           amount: total,
           orderInfo: `Thanh toan don hang ${orderId}`
         });
-        if (!rs?.paymentUrl) throw new Error('Khong tao duoc lien ket thanh toan VNPAY');
+        if (!rs?.paymentUrl) throw new Error('Không tạo được liên kết thanh toán VNPAY');
+        localStorage.removeItem(selectionKey);
         window.location.href = rs.paymentUrl;
         return;
-      } else {
-        await ApiService.createOrder(orderData);
-        toast.success('Đơn hàng của bạn đã được đặt thành công!');
-        CartService.clearCart();
-        navigateToHome();
       }
+
+      await ApiService.createOrder(orderData);
+
+      const remaining = allItems.filter((x) => !selectedIds.includes(x.id));
+      await CartService.clearCart();
+      for (const r of remaining) {
+        await CartService.addItem(
+          {
+            id: r.productId,
+            name: r.name,
+            price: r.price,
+            images: [r.image]
+          },
+          r.size,
+          r.quantity
+        );
+      }
+
+      localStorage.removeItem(selectionKey);
+      toast.success('Đơn hàng của bạn đã được đặt thành công!');
+      navigateToHome();
     } catch (err) {
       console.error(err);
       if (err instanceof HttpError) {
@@ -141,7 +186,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
     return (
       <main className="flex-1 bg-bg py-12 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 font-medium mb-4">Giỏ hàng của bạn đang trống</p>
+          <p className="text-gray-500 font-medium mb-4">Bạn chưa chọn sản phẩm nào để thanh toán</p>
           <button onClick={navigateToHome} className="bg-primary text-white font-bold px-6 py-2 rounded-lg cursor-pointer border-none">
             Quay lại cửa hàng
           </button>
@@ -228,24 +273,23 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
                   </div>
                 ))}
               </div>
-              
-              {/* Voucher section */}
+
               <div className="mb-6 pt-4 border-t border-gray-100">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="relative flex-1">
-                    <input 
+                    <input
                       id="checkout-voucher-code"
                       name="voucherCode"
                       autoComplete="off"
-                      type="text" 
+                      type="text"
                       value={voucherCode}
                       onChange={e => setVoucherCode(e.target.value)}
-                      placeholder="Mã giảm giá" 
+                      placeholder="Mã giảm giá"
                       className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-primary focus:outline-none text-sm uppercase transition-all"
                       disabled={appliedVoucher !== null}
                     />
                   </div>
-                  <button 
+                  <button
                     onClick={handleApplyVoucher}
                     disabled={appliedVoucher !== null || !voucherCode.trim()}
                     className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-dark font-bold rounded-xl text-sm transition-all border-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
@@ -262,7 +306,7 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
                       </p>
                       <p className="text-[12px] font-medium text-green-600 mt-0.5">- {CartService.formatPrice(appliedVoucher.amount)}</p>
                     </div>
-                    <button 
+                    <button
                       onClick={(e) => { e.preventDefault(); handleRemoveVoucher(); }}
                       className="text-red-500 hover:text-red-600 text-[13px] font-bold border-none bg-transparent cursor-pointer underline p-0"
                     >
@@ -292,12 +336,12 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
                   <span className="font-[900] text-[24px] text-primary">{CartService.formatPrice(total)}</span>
                 </div>
               </div>
-              <button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="w-full py-4 bg-primary text-white font-bold text-[16px] rounded-[12px] hover:bg-opacity-90 shadow-lg transition-all cursor-pointer border-none flex items-center justify-center gap-2"
+              <button
+                type="submit"
+                disabled={isSubmitting || items.length === 0}
+                className="w-full py-4 bg-primary text-white font-bold text-[16px] rounded-[12px] hover:bg-opacity-90 shadow-lg transition-all cursor-pointer border-none flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Đang xử lý...' : 'Xác nhận Đặt hàng'}
+                {isSubmitting ? 'Đang xử lý...' : 'Xác nhận đặt hàng'}
               </button>
             </div>
           </aside>
@@ -308,5 +352,3 @@ const Checkout: React.FC<CheckoutProps> = ({ onBack, navigateToHome }) => {
 };
 
 export default Checkout;
-
-

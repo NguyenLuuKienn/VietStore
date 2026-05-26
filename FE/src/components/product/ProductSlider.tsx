@@ -35,9 +35,9 @@ const ProductSlider: React.FC<ProductSliderProps> = ({ title, products, isLoadin
         <div className="flex items-center justify-between mb-8 px-4 sm:px-0">
           <div className="h-8 w-48 bg-gray-200 rounded-md animate-pulse"></div>
         </div>
-        <div className="flex gap-6 overflow-hidden px-4 sm:px-0">
+        <div className="flex gap-5 overflow-hidden px-4 sm:px-0">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="min-w-[280px] h-[400px] bg-gray-100 rounded-2xl animate-pulse"></div>
+            <div key={i} className="min-w-[250px] h-[360px] bg-gray-100 rounded-2xl animate-pulse"></div>
           ))}
         </div>
       </div>
@@ -85,11 +85,11 @@ const ProductSlider: React.FC<ProductSliderProps> = ({ title, products, isLoadin
 
       <div 
         ref={scrollRef}
-        className="flex gap-6 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 px-4 sm:px-0"
+        className="flex gap-5 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-4 px-4 sm:px-0"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {products.map((product) => (
-          <div key={product.id} className="w-[280px] sm:w-[320px] flex-shrink-0 snap-start">
+          <div key={product.id} className="w-[250px] sm:w-[285px] flex-shrink-0 snap-start">
             <ProductCard product={product} onClick={() => onProductClick?.(product)} />
           </div>
         ))}

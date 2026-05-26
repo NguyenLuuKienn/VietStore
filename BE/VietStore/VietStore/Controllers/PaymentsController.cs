@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VietStore.Data;
+using VietStore.Services;
 
 namespace VietStore.Controllers;
 
@@ -15,12 +16,14 @@ public class PaymentsController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly VietStoreDbContext _dbContext;
     private readonly ILogger<PaymentsController> _logger;
+    private readonly IEmailService _emailService;
 
-    public PaymentsController(IConfiguration configuration, VietStoreDbContext dbContext, ILogger<PaymentsController> logger)
+    public PaymentsController(IConfiguration configuration, VietStoreDbContext dbContext, ILogger<PaymentsController> logger, IEmailService emailService)
     {
         _configuration = configuration;
         _dbContext = dbContext;
         _logger = logger;
+        _emailService = emailService;
     }
 
     [HttpPost("create")]
@@ -346,6 +349,12 @@ public class PaymentsController : ControllerBase
         }
 
         await _dbContext.SaveChangesAsync();
+
+        if (!string.Equals((order.PhuongThucThanhToan ?? "").Trim(), "VNPAY", StringComparison.OrdinalIgnoreCase) ||
+            order.TrangThai == "DaHuy")
+        {
+            await SendOrderCancelledEmail(order);
+        }
     }
 
     private async Task MarkOrderPaid(string orderId)
@@ -360,6 +369,26 @@ public class PaymentsController : ControllerBase
         {
             order.TrangThai = "ChoXacNhan";
             await _dbContext.SaveChangesAsync();
+        }
+    }
+
+    private async Task SendOrderCancelledEmail(VietStore.Models.DonHang order)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(order.MaNguoiDung)) return;
+            var email = await _dbContext.NguoiDung
+                .Where(x => x.MaNguoiDung == order.MaNguoiDung)
+                .Select(x => x.Email)
+                .FirstOrDefaultAsync();
+            if (string.IsNullOrWhiteSpace(email)) return;
+
+            var html = EmailTemplates.OrderCancelledTemplate(order.TenKhachHang, order.MaDonHang);
+            await _emailService.SendAsync(email, $"[VietStore] Đơn hàng đã hủy #{order.MaDonHang}", html);
+        }
+        catch
+        {
+            // Ignore email failure.
         }
     }
 }

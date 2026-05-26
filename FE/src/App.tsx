@@ -112,18 +112,33 @@ export default function App() {
       setSelectedCategory((parsed as any).category || null);
       navigateTo(parsed.view, (parsed as any).category || null, true);
     };
+    const handleSessionExpired = () => {
+      const protectedViews: ViewState[] = ['cart', 'profile', 'orders', 'wishlist', 'checkout', 'payment-result', 'admin'];
+      if (protectedViews.includes(view)) {
+        navigateTo('login');
+      }
+    };
     window.addEventListener('navigate', handleNavigate);
     window.addEventListener('popstate', handlePopState);
+    window.addEventListener('session-expired', handleSessionExpired);
     
-    ApiService.testConnection();
     boot();
 
     return () => {
       unsubscribe();
       window.removeEventListener('navigate', handleNavigate);
       window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('session-expired', handleSessionExpired);
     };
-  }, []);
+  }, [view]);
+
+  useEffect(() => {
+    if (user) return;
+    const protectedViews: ViewState[] = ['cart', 'profile', 'orders', 'wishlist', 'checkout', 'payment-result', 'admin'];
+    if (protectedViews.includes(view)) {
+      navigateTo('login');
+    }
+  }, [user, view]);
 
   const navigateTo = (newView: ViewState, category: string | null = null, replaceState = false) => {
     if (newView === 'admin' && !AuthService.canAccessAdmin()) {

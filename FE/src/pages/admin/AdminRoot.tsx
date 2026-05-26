@@ -19,7 +19,10 @@ const AdminRoot: React.FC<AdminRootProps> = ({ navigateToHome }) => {
   const isStaff = AuthService.isStaff();
   const staffAllowedTabs = useMemo(() => new Set<AdminTab>(['dashboard', 'products', 'orders', 'customers']), []);
   const allTabs = useMemo<AdminTab[]>(() => ['dashboard', 'products', 'categories', 'orders', 'customers', 'staff', 'suppliers', 'finance', 'discounts', 'settings'], []);
-  const allowedTabs = isStaff ? (allTabs.filter(t => staffAllowedTabs.has(t))) : allTabs;
+  const allowedTabs = useMemo(
+    () => (isStaff ? allTabs.filter(t => staffAllowedTabs.has(t)) : allTabs),
+    [isStaff, allTabs, staffAllowedTabs]
+  );
   const getTabFromUrl = (): AdminTab => {
     const qp = new URLSearchParams(window.location.search).get('tab') as AdminTab | null;
     if (qp && allowedTabs.includes(qp)) return qp;
@@ -56,7 +59,7 @@ const AdminRoot: React.FC<AdminRootProps> = ({ navigateToHome }) => {
       setActiveTab('dashboard');
       return;
     }
-    setMountedTabs(prev => ({ ...prev, [activeTab]: true }));
+    setMountedTabs(prev => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
     const url = new URL(window.location.href);
     url.searchParams.set('tab', activeTab);
     window.history.replaceState({}, '', `${url.pathname}?${url.searchParams.toString()}`);

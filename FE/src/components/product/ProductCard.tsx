@@ -16,6 +16,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, onWishlistT
   const [isWishlisted, setIsWishlisted] = useState(false);
   const stock = Number(product.stockQuantity ?? 0);
   const inStock = stock > 0;
+  const basePrice = Number(product.price || 0);
+  const discountAmount = Number(product.discountAmount || 0);
+  const hasDiscount = Boolean(product.isDiscounted) && discountAmount > 0;
+  const finalPrice = Math.max(0, basePrice - discountAmount);
 
   useEffect(() => {
     const syncWishlist = () => setIsWishlisted(AccountService.isWishlisted(product.id.toString()));
@@ -46,8 +50,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, onWishlistT
   };
 
   return (
-    <div className="bg-white rounded-[16px] p-[10px] sm:p-[15px] shadow-[0_4px_12px_rgba(100,197,227,0.1)] group flex flex-col h-full border hover:border-primary/30 transition-all hover:shadow-[0_8px_24px_rgba(100,197,227,0.2)] hover:-translate-y-1">
-      <div className="relative w-full aspect-[3/4] overflow-hidden bg-[#f7f7f7] rounded-[12px] mb-3 cursor-pointer p-2" onClick={onClick}>
+    <div className="bg-white rounded-[14px] p-[9px] sm:p-[12px] shadow-[0_4px_12px_rgba(100,197,227,0.1)] group flex flex-col h-full border hover:border-primary/30 transition-all hover:shadow-[0_8px_24px_rgba(100,197,227,0.2)] hover:-translate-y-1">
+      <div className="relative w-full aspect-[3/4] overflow-hidden bg-[#f7f7f7] rounded-[10px] mb-2.5 cursor-pointer p-1.5" onClick={onClick}>
         <img
           src={product.images?.[0] || 'https://placehold.co/400x400'}
           alt={product.name}
@@ -66,7 +70,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, onWishlistT
       </div>
 
       <div className="flex flex-col flex-1 px-1 cursor-pointer" onClick={onClick}>
-        <h3 className="font-bold text-dark text-[14px] sm:text-[15px] leading-snug line-clamp-2 h-[42px] mb-1 group-hover:text-primary transition-colors">{product.name}</h3>
+        <h3 className="font-bold text-dark text-[13px] sm:text-[14px] leading-snug line-clamp-2 mb-1 group-hover:text-primary transition-colors">{product.name}</h3>
 
         <div className="mb-2">
           <span className={`text-[12px] font-bold px-2 py-1 rounded-md ${inStock ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
@@ -74,11 +78,16 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, onWishlistT
           </span>
         </div>
 
-        <div className="text-primary font-[800] text-[16px] sm:text-[18px] mb-3 mt-auto">{CartService.formatPrice(product.price)}</div>
+        <div className="mb-2.5 mt-auto">
+          {hasDiscount && (
+            <div className="text-gray-400 text-[12px] line-through font-semibold">{CartService.formatPrice(basePrice)}</div>
+          )}
+          <div className="text-primary font-[800] text-[15px] sm:text-[17px]">{CartService.formatPrice(finalPrice)}</div>
+        </div>
 
         <button
           disabled={!inStock}
-          className={`w-full py-2.5 rounded-[10px] font-bold transition-all border-none flex items-center justify-center gap-2 group/btn ${inStock ? 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+          className={`w-full py-2 rounded-[10px] font-bold transition-all border-none flex items-center justify-center gap-2 group/btn ${inStock ? 'bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white cursor-pointer' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
           onClick={async (e) => {
             e.stopPropagation();
             if (!inStock) return;
@@ -96,7 +105,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick, onWishlistT
           }}
         >
           <ShoppingCart className="w-[18px] h-[18px] transition-transform group-hover/btn:-rotate-12" />
-          <span className="text-[14px]">{inStock ? 'Thêm vào giỏ' : 'Hết hàng'}</span>
+          <span className="text-[13px]">{inStock ? 'Thêm vào giỏ' : 'Hết hàng'}</span>
         </button>
       </div>
     </div>

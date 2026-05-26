@@ -38,7 +38,7 @@ export const AccountService = {
 
   updateProfile: async (data: { fullName: string; phone: string; address: string }) => {
     const user = AuthService.getUser();
-    if (!user) throw new Error('Chua dang nhap');
+    if (!user) throw new Error('Chưa đăng nhập');
 
     await http.put(`/api/users/${user.id}`, {
       HoTen: data.fullName,
@@ -95,7 +95,7 @@ export const AccountService = {
 
   toggleWishlist: async (productId: string) => {
     const user = AuthService.getUser();
-    if (!user) throw new Error('Chua dang nhap');
+    if (!user) throw new Error('Chưa đăng nhập');
 
     const wishlistMap = getLocal(STORAGE_KEYS.WISHLIST);
     const userWishlist = wishlistMap[user.id] || [];

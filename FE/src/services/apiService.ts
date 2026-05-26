@@ -66,17 +66,21 @@ const mapProduct = (item: any): Product => ({
   id: item.maSanPham || item.MaSanPham,
   name: item.tenSanPham || item.TenSanPham,
   price: `${Math.round(item.giaBan || item.GiaBan || 0)}`,
+  isDiscounted: Boolean(item.isGiamGia ?? item.IsGiamGia ?? item.isDiscounted ?? item.IsDiscounted),
+  discountAmount: Number(item.soTienGiam ?? item.SoTienGiam ?? item.discountAmount ?? 0),
   category: item.maDanhMuc || item.MaDanhMuc || '',
   images:
     normalizeImageUrls(item.images || item.Images).length > 0
       ? normalizeImageUrls(item.images || item.Images)
       : [item.anhDaiDien || item.AnhDaiDien || ''].filter(Boolean),
   description: item.moTa || item.MoTa || '',
+  detailedInfo: item.thongTinChiTiet || item.ThongTinChiTiet || '',
   isFeaturedNew: Boolean(item.isFeaturedNew ?? item.IsFeaturedNew),
   isFeaturedBestseller: Boolean(item.isFeaturedBestseller ?? item.IsFeaturedBestseller),
   stockQuantity: Number(item.soLuongTon ?? item.SoLuongTon ?? item.stockQuantity ?? 0),
   soldCount: item.soLuotBan || item.SoLuotBan || 0,
-  supplier: item.maNhaCungCap || item.MaNhaCungCap || ''
+  supplier: item.maNhaCungCap || item.MaNhaCungCap || '',
+  isVisible: Boolean(item.isVisible ?? item.IsVisible ?? true)
 });
 
 const mapSupplierToUi = (s: any) => ({
@@ -188,8 +192,8 @@ export const ApiService = {
     return true;
   },
 
-  getProducts: async (pageSize = 20, includeImages = false): Promise<Product[]> => {
-    const key = `${pageSize}:${includeImages ? 1 : 0}`;
+  getProducts: async (pageSize = 20, includeImages = false, includeHidden = false): Promise<Product[]> => {
+    const key = `${pageSize}:${includeImages ? 1 : 0}:${includeHidden ? 1 : 0}`;
     const cached = cache.products.get(key);
     if (cached && isFresh(cached.at)) return cached.data;
     const lsData = readLsCache<Product[]>(`products:${key}`);
@@ -199,7 +203,7 @@ export const ApiService = {
     }
     if (inflight.products.has(key)) return inflight.products.get(key)!;
     const req = (async () => {
-      const data = await http.get<any>(`/api/products?limit=${pageSize}&includeImages=${includeImages}`);
+      const data = await http.get<any>(`/api/products?limit=${pageSize}&includeImages=${includeImages}&includeHidden=${includeHidden}`);
       const mapped = (data.items || []).map(mapProduct);
       cache.products.set(key, { at: now(), data: mapped });
       writeLsCache(`products:${key}`, mapped);
@@ -301,9 +305,13 @@ export const ApiService = {
       MaNhaCungCap: productData.MaNhaCungCap || productData.supplier || null,
       GiaBan: toNumberPrice(productData.GiaBan ?? productData.price),
       MoTa: productData.MoTa || productData.description || '',
+      ThongTinChiTiet: productData.ThongTinChiTiet ?? productData.detailedInfo ?? '',
       SoLuongTon: Number(productData.SoLuongTon ?? productData.stockQuantity ?? 0),
+      IsVisible: Boolean(productData.IsVisible ?? productData.isVisible ?? true),
       IsFeaturedNew: Boolean(productData.IsFeaturedNew ?? productData.isFeaturedNew),
       IsFeaturedBestseller: Boolean(productData.IsFeaturedBestseller ?? productData.isFeaturedBestseller),
+      IsGiamGia: Boolean(productData.IsGiamGia ?? productData.isDiscounted),
+      SoTienGiam: Number(productData.SoTienGiam ?? productData.discountAmount ?? 0),
       AnhDaiDien: images[0] || null
     };
 
@@ -327,9 +335,13 @@ export const ApiService = {
       MaNhaCungCap: productData.MaNhaCungCap || productData.supplier || null,
       GiaBan: toNumberPrice(productData.GiaBan ?? productData.price),
       MoTa: productData.MoTa || productData.description || '',
+      ThongTinChiTiet: productData.ThongTinChiTiet ?? productData.detailedInfo ?? '',
       SoLuongTon: Number(productData.SoLuongTon ?? productData.stockQuantity ?? 0),
+      IsVisible: Boolean(productData.IsVisible ?? productData.isVisible ?? true),
       IsFeaturedNew: Boolean(productData.IsFeaturedNew ?? productData.isFeaturedNew),
       IsFeaturedBestseller: Boolean(productData.IsFeaturedBestseller ?? productData.isFeaturedBestseller),
+      IsGiamGia: Boolean(productData.IsGiamGia ?? productData.isDiscounted),
+      SoTienGiam: Number(productData.SoTienGiam ?? productData.discountAmount ?? 0),
       AnhDaiDien: nextImages[0] || null
     });
 
@@ -529,5 +541,39 @@ export const ApiService = {
 
   testConnection: async () => {
     await http.get('/api/health/db');
+  },
+
+  getProductCrudHistory: async (limit = 100) => {
+    return http.get<any[]>(`/api/products/history?limit=${limit}`);
+  },
+
+  getOrderCrudHistory: async (limit = 100) => {
+    return http.get<any[]>(`/api/orders/history?limit=${limit}`);
+  },
+
+  getCart: async () => {
+    return http.get<any>('/api/cart');
+  },
+
+  addCartItem: async (data: { productId: string; size: string; quantity: number }) => {
+    return http.post('/api/cart/items', {
+      ProductId: data.productId,
+      Size: data.size,
+      Quantity: data.quantity
+    });
+  },
+
+  updateCartItem: async (id: number, quantity: number) => {
+    return http.put(`/api/cart/items/${id}`, { Quantity: quantity });
+  },
+
+  removeCartItem: async (id: number) => {
+    await http.delete(`/api/cart/items/${id}`);
+    return { success: true };
+  },
+
+  clearCart: async () => {
+    await http.delete('/api/cart');
+    return { success: true };
   }
 };

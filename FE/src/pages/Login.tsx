@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Mail, Lock, ArrowLeft, Shirt, LogIn } from 'lucide-react';
 import { AuthService } from '../services/authService';
 import { toast } from '../lib/toast';
@@ -19,10 +19,10 @@ const Login: React.FC<LoginProps> = ({ navigateToHome, navigateToRegister, onLog
     setError('');
     try {
       await AuthService.login(email, password);
-      toast.success('Dang nhap thanh cong');
+      toast.success('Đăng nhập thành công');
       onLoginSuccess();
     } catch (err: any) {
-      const msg = err.message || 'Dang nhap that bai';
+      const msg = err.message || 'Đăng nhập thất bại';
       setError(msg);
       toast.error(msg);
     }
@@ -96,34 +96,6 @@ const Login: React.FC<LoginProps> = ({ navigateToHome, navigateToRegister, onLog
             </div>
           </form>
 
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-100"></div>
-              </div>
-              <div className="relative flex justify-center text-sm font-medium">
-                <span className="px-3 bg-white text-gray-500">Hoặc tiếp tục với</span>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <button
-                onClick={async () => {
-                  try {
-                    await AuthService.loginWithGoogle();
-                    onLoginSuccess();
-                  } catch (err: any) {
-                    setError(err.message);
-                  }
-                }}
-                className="w-full flex justify-center items-center gap-3 py-3 px-4 border border-gray-200 rounded-[12px] bg-white text-[15px] font-bold text-dark hover:bg-gray-50 transition-all cursor-pointer shadow-sm"
-              >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
-                Đăng nhập bằng Google
-              </button>
-            </div>
-          </div>
-
           <div className="mt-8 pt-6 border-t border-gray-100">
             <button onClick={navigateToHome} className="w-full flex justify-center items-center gap-2 py-3 px-4 rounded-[12px] text-[15px] font-bold text-dark bg-gray-50 hover:bg-gray-100 transition-all cursor-pointer border-none">
               <ArrowLeft className="w-4 h-4" />
@@ -136,4 +108,5 @@ const Login: React.FC<LoginProps> = ({ navigateToHome, navigateToRegister, onLog
   );
 };
 export default Login;
+
 

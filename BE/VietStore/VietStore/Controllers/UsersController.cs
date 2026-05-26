@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using VietStore.Data;
 
@@ -26,6 +27,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> GetUsers([FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int limit = 20)
     {
         var query = _dbContext.NguoiDung.AsQueryable();
@@ -55,6 +57,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("{maNguoiDung}")]
+    [Authorize]
     public async Task<IActionResult> GetUser(string maNguoiDung)
     {
         var user = await _dbContext.NguoiDung.FirstOrDefaultAsync(x => x.MaNguoiDung == maNguoiDung);
@@ -63,6 +66,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{maNguoiDung}")]
+    [Authorize]
     public async Task<IActionResult> UpdateUser(string maNguoiDung, [FromBody] UpdateUserRequest request)
     {
         var user = await _dbContext.NguoiDung.FirstOrDefaultAsync(x => x.MaNguoiDung == maNguoiDung);
@@ -76,6 +80,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{maNguoiDung}/status")]
+    [Authorize(Roles = "admin,staff")]
     public async Task<IActionResult> UpdateStatus(string maNguoiDung, [FromBody] UpdateUserStatusRequest request)
     {
         var user = await _dbContext.NguoiDung.FirstOrDefaultAsync(x => x.MaNguoiDung == maNguoiDung);
@@ -87,6 +92,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("staff")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> GetStaff([FromQuery] string? search)
     {
         var query = _dbContext.NguoiDung.Where(x => x.Quyen == 2).AsQueryable();
@@ -112,6 +118,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPost("staff")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> CreateStaff([FromBody] CreateStaffRequest request)
     {
         var exists = await _dbContext.NguoiDung.AnyAsync(x => x.Email == request.Email);
@@ -139,6 +146,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("staff/{maNguoiDung}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateStaff(string maNguoiDung, [FromBody] UpdateStaffRequest request)
     {
         var user = await _dbContext.NguoiDung.FirstOrDefaultAsync(x => x.MaNguoiDung == maNguoiDung && x.Quyen == 2);
@@ -153,6 +161,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("staff/{maNguoiDung}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteStaff(string maNguoiDung)
     {
         var user = await _dbContext.NguoiDung.FirstOrDefaultAsync(x => x.MaNguoiDung == maNguoiDung && x.Quyen == 2);

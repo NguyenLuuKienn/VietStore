@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { Search, ShoppingCart, Menu, User, ChevronDown, MapPin, Phone, Mail, Shirt } from 'lucide-react';
+import { Search, ShoppingCart, Menu, User, ChevronDown, MapPin, Phone, Mail } from 'lucide-react';
 import { ApiService } from '../../services/apiService';
 import { AuthService } from '../../services/authService';
 import { CartService } from '../../services/cartService';
@@ -48,6 +48,7 @@ const MainLayout: React.FC<LayoutProps> = ({
 }) => {
   const [categories, setCategories] = React.useState<any[]>([]);
   const [cartCount, setCartCount] = React.useState(CartService.getCartCount());
+  const [currentUser, setCurrentUser] = React.useState<AuthUser | null>(user || AuthService.getUser());
   const [searchQuery, setSearchQuery] = React.useState('');
   const [searchResults, setSearchResults] = React.useState<any[]>([]);
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
@@ -66,10 +67,30 @@ const MainLayout: React.FC<LayoutProps> = ({
     };
 
     window.addEventListener('cart-updated', updateCount);
+    window.addEventListener('auth-changed', updateCount);
+    window.addEventListener('storage', updateCount as EventListener);
+    window.addEventListener('focus', updateCount);
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       window.removeEventListener('cart-updated', updateCount);
+      window.removeEventListener('auth-changed', updateCount);
+      window.removeEventListener('storage', updateCount as EventListener);
+      window.removeEventListener('focus', updateCount);
       document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    setCurrentUser(user || AuthService.getUser());
+  }, [user]);
+
+  React.useEffect(() => {
+    const syncUser = () => setCurrentUser(AuthService.getUser());
+    window.addEventListener('auth-changed', syncUser);
+    window.addEventListener('storage', syncUser);
+    return () => {
+      window.removeEventListener('auth-changed', syncUser);
+      window.removeEventListener('storage', syncUser);
     };
   }, []);
 
@@ -168,9 +189,7 @@ const MainLayout: React.FC<LayoutProps> = ({
       <header className="bg-secondary relative z-[60]">
         <div className="container mx-auto px-4 sm:px-10 py-4 flex items-center justify-between gap-4 md:gap-8">
           <div className="flex-shrink-0 flex items-center gap-2 cursor-pointer" onClick={navigateToHome}>
-            <div className="bg-primary text-white p-2 rounded-lg shadow-sm">
-              <Shirt className="w-7 h-7" />
-            </div>
+            <img src="/logo.png" alt="VietStore" className="w-11 h-11 object-contain" />
             <span className="text-[26px] font-[900] text-primary hidden lg:block tracking-[-1px]">VietStore</span>
           </div>
 
@@ -195,6 +214,12 @@ const MainLayout: React.FC<LayoutProps> = ({
                   {searchResults.length > 0 ? (
                     <ul className="list-none m-0 p-2">
                       {searchResults.map((product) => (
+                        (() => {
+                          const basePrice = Number(product.price || 0);
+                          const discountAmount = Number(product.discountAmount || 0);
+                          const hasDiscount = Boolean(product.isDiscounted) && discountAmount > 0;
+                          const finalPrice = Math.max(0, basePrice - discountAmount);
+                          return (
                         <li key={product.id}>
                           <button
                             onClick={() => {
@@ -207,10 +232,15 @@ const MainLayout: React.FC<LayoutProps> = ({
                             <img src={product.images[0]} alt={product.name} className="w-12 h-12 object-cover rounded-lg border border-gray-100" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-bold text-dark truncate leading-tight mb-1">{product.name}</p>
-                              <p className="text-primary text-sm font-bold m-0">{CartService.formatPrice(product.price)}</p>
+                              {hasDiscount && (
+                                <p className="text-[11px] text-gray-400 line-through m-0">{CartService.formatPrice(basePrice)}</p>
+                              )}
+                              <p className="text-primary text-sm font-bold m-0">{CartService.formatPrice(finalPrice)}</p>
                             </div>
                           </button>
                         </li>
+                          );
+                        })()
                       ))}
                     </ul>
                   ) : (
@@ -242,16 +272,16 @@ const MainLayout: React.FC<LayoutProps> = ({
                 <div className="w-9 h-9 bg-primary text-white rounded-full flex items-center justify-center overflow-hidden">
                   <User className="w-[18px] h-[18px]" />
                 </div>
-                <span className="text-[14px] font-bold text-dark hidden sm:block">Tài khoản</span>
+                <span className="text-[14px] font-bold text-dark hidden sm:block">{currentUser?.fullName || 'Tài khoản'}</span>
                 <ChevronDown className="w-4 h-4 text-gray-400 hidden sm:block transition-transform group-hover:rotate-180" />
               </div>
 
               <div className="absolute right-0 top-full pt-2 w-[220px] opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
                 <div className="bg-white border border-gray-100 rounded-[12px] shadow-[0_10px_30px_rgba(0,0,0,0.08)] overflow-hidden">
-                  {user ? (
+                  {currentUser ? (
                     <>
                       <div className="px-4 py-3 border-b border-gray-50 bg-gray-50/50">
-                        <p className="font-semibold text-dark text-sm">Xin chào, {user.fullName}!</p>
+                        <p className="font-semibold text-dark text-sm">Xin chào, {currentUser.fullName}!</p>
                       </div>
                       <ul className="py-2 flex flex-col m-0 p-0 list-none">
                         <li onClick={navigateToProfile} className="px-4 py-2.5 hover:bg-primary/5 hover:text-primary cursor-pointer text-sm font-semibold transition-colors text-gray-600 block">Quản lý hồ sơ</li>
@@ -359,7 +389,7 @@ const MainLayout: React.FC<LayoutProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12 mb-12">
             <div className="lg:col-span-1">
               <div className="flex items-center gap-2 mb-6 cursor-pointer" onClick={navigateToHome}>
-                <div className="bg-primary text-white p-2 rounded-lg"><Shirt className="w-6 h-6" /></div>
+                <img src="/logo.png" alt="VietStore" className="w-9 h-9 object-contain" />
                 <span className="text-[24px] font-[900] tracking-[-1px] text-primary">VietStore</span>
               </div>
               <p className="text-white/80 text-[14px] leading-relaxed mb-6 font-medium">

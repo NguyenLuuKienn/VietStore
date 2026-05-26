@@ -7,7 +7,6 @@ import {
   LogOut,
   Shirt,
   Bell,
-  Search,
   PackageOpen,
   Truck,
   DollarSign,
@@ -87,22 +86,38 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, navigateToHome, act
   }, [refreshNewOrdersCount]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-  React.useEffect(() => {
+  const loadNotifications = React.useCallback(async () => {
     const userId = AuthService.getUser()?.id;
-    ApiService.getNotifications(userId)
-      .then((items: any[]) => {
-        setNotifications(
-          items.map((n: any) => ({
-            id: n.maThongBao || n.MaThongBao,
-            title: n.tieuDe || n.TieuDe,
-            content: n.noiDung || n.NoiDung,
-            time: new Date(n.thoiGian || n.ThoiGian || Date.now()).toLocaleString('vi-VN'),
-            read: n.daDoc ?? n.DaDoc ?? false
-          }))
-        );
-      })
-      .catch(() => {});
+    try {
+      const items: any[] = await ApiService.getNotifications(userId);
+      setNotifications(
+        (items || []).map((n: any) => ({
+          id: n.maThongBao || n.MaThongBao,
+          title: n.tieuDe || n.TieuDe,
+          content: n.noiDung || n.NoiDung,
+          time: new Date(n.thoiGian || n.ThoiGian || Date.now()).toLocaleString('vi-VN'),
+          read: n.daDoc ?? n.DaDoc ?? false
+        }))
+      );
+    } catch {
+      // ignore transient fetch error
+    }
   }, []);
+
+  React.useEffect(() => {
+    loadNotifications();
+    const t = window.setInterval(loadNotifications, 15000);
+    const onAdminChanged = () => loadNotifications();
+    window.addEventListener('admin-data-changed', onAdminChanged);
+    return () => {
+      window.clearInterval(t);
+      window.removeEventListener('admin-data-changed', onAdminChanged);
+    };
+  }, [loadNotifications]);
+
+  React.useEffect(() => {
+    if (showNotifications) loadNotifications();
+  }, [showNotifications, loadNotifications]);
 
   const markAsRead = (id: number) => {
     setNotifications(notifications.map((n) => (n.id === id ? { ...n, read: true } : n)));
@@ -190,14 +205,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children, navigateToHome, act
 
       <main className="flex-1 ml-[260px] flex flex-col min-h-screen">
         <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-8 sticky top-0 z-30">
-          <div className="relative">
-            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Tìm kiếm trong admin..."
-              className="pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-100 rounded-full text-[14px] font-medium w-[300px] focus:outline-none focus:border-primary focus:ring-[3px] focus:ring-primary/10 focus:bg-white transition-all"
-            />
-          </div>
+          <div></div>
 
           <div className="flex items-center gap-6">
             <div className="relative">
