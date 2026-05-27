@@ -24,7 +24,6 @@ out/
 *.db-wal
 
 # Secrets
-appsettings.Development.json
 secrets.json
 
 # OS
