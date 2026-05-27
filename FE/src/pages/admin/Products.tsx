@@ -1,9 +1,8 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { History, X, Edit, Plus, Trash2 } from 'lucide-react';
 import { CartService } from '../../services/cartService';
 import Modal from '../../components/common/Modal';
-import RichTextEditor from '../../components/common/RichTextEditor';
 import { ApiService } from '../../services/apiService';
 import { Product } from '../../types';
 import { toast } from '../../lib/toast';
@@ -22,6 +21,7 @@ type ProductHistoryItem = {
 };
 
 const Products: React.FC = () => {
+  const RichTextEditor = React.lazy(() => import('../../components/common/RichTextEditor'));
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyItems, setHistoryItems] = useState<ProductHistoryItem[]>([]);
   const [modalConfig, setModalConfig] = useState<{type: 'none' | 'add' | 'edit' | 'delete', product?: Product}>({type: 'none'});
@@ -49,6 +49,16 @@ const Products: React.FC = () => {
   const [isEditModalLoading, setIsEditModalLoading] = useState(false);
 
   const loadHistory = async () => {
+    const formatVnTime = (value: any) => {
+      if (!value) return '';
+      const raw = String(value).trim();
+      const hasTimezone = /([zZ]|[+\-]\d{2}:\d{2})$/.test(raw);
+      const normalized = hasTimezone ? raw : `${raw}Z`;
+      const dt = new Date(normalized);
+      if (Number.isNaN(dt.getTime())) return raw;
+      return dt.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
+    };
+
     try {
       const data = await ApiService.getProductCrudHistory(200);
       const mapped = (data || []).map((x: any) => ({
@@ -56,7 +66,7 @@ const Products: React.FC = () => {
         user: x.nguoiThucHien || x.NguoiThucHien || 'Hệ thống',
         role: x.vaiTro || x.VaiTro || 'Unknown',
         action: x.noiDung || x.NoiDung || x.hanhDong || x.HanhDong || '',
-        date: x.thoiGian || x.ThoiGian ? new Date(x.thoiGian || x.ThoiGian).toLocaleString('vi-VN') : ''
+        date: formatVnTime(x.thoiGian || x.ThoiGian)
       }));
       setHistoryItems(mapped.length > 0 ? mapped : mockHistory);
     } catch {
@@ -466,22 +476,26 @@ const Products: React.FC = () => {
 
             <div className="col-span-2">
               <label className="block text-sm font-bold text-dark mb-2">Mô tả sản phẩm</label>
-              <RichTextEditor
-                value={formData.description}
-                onChange={(html) => setFormData({ ...formData, description: html })}
-                placeholder="Nhập mô tả sản phẩm..."
-                minHeight={140}
-              />
+              <Suspense fallback={<div className="h-[140px] rounded-xl border-2 border-gray-100 bg-gray-50 animate-pulse" />}>
+                <RichTextEditor
+                  value={formData.description}
+                  onChange={(html) => setFormData({ ...formData, description: html })}
+                  placeholder="Nhập mô tả sản phẩm..."
+                  minHeight={140}
+                />
+              </Suspense>
             </div>
 
             <div className="col-span-2">
               <label className="block text-sm font-bold text-dark mb-2">Thông tin chi tiết sản phẩm</label>
-              <RichTextEditor
-                value={formData.detailedInfo}
-                onChange={(html) => setFormData({ ...formData, detailedInfo: html })}
-                placeholder="Nhập thông tin chi tiết, bảng thông số, chất liệu, hướng dẫn sử dụng..."
-                minHeight={220}
-              />
+              <Suspense fallback={<div className="h-[220px] rounded-xl border-2 border-gray-100 bg-gray-50 animate-pulse" />}>
+                <RichTextEditor
+                  value={formData.detailedInfo}
+                  onChange={(html) => setFormData({ ...formData, detailedInfo: html })}
+                  placeholder="Nhập thông tin chi tiết, bảng thông số, chất liệu, hướng dẫn sử dụng..."
+                  minHeight={220}
+                />
+              </Suspense>
             </div>
 
             <div className="col-span-2">
@@ -563,10 +577,10 @@ const Products: React.FC = () => {
       {isHistoryOpen && createPortal(
         <>
           <div
-            className="fixed inset-0 bg-black/30 z-40"
+            className="fixed inset-0 bg-black/30 z-[80]"
             onClick={() => setIsHistoryOpen(false)}
           />
-          <aside className="fixed right-0 top-0 h-full w-[380px] max-w-[92vw] bg-white border-l border-gray-200 shadow-2xl z-[70] flex flex-col">
+          <aside className="fixed right-0 top-0 h-full w-[380px] max-w-[92vw] bg-white border-l border-gray-200 shadow-2xl z-[90] flex flex-col">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-[900] text-dark">Lịch sử CRUD sản phẩm</h3>
               <button
@@ -602,6 +616,10 @@ const Products: React.FC = () => {
 };
 
 export default Products;
+
+
+
+
 
 
 

@@ -196,17 +196,11 @@ export const ApiService = {
     const key = `${pageSize}:${includeImages ? 1 : 0}:${includeHidden ? 1 : 0}`;
     const cached = cache.products.get(key);
     if (cached && isFresh(cached.at)) return cached.data;
-    const lsData = readLsCache<Product[]>(`products:${key}`);
-    if (lsData) {
-      cache.products.set(key, { at: now(), data: lsData });
-      return lsData;
-    }
     if (inflight.products.has(key)) return inflight.products.get(key)!;
     const req = (async () => {
       const data = await http.get<any>(`/api/products?limit=${pageSize}&includeImages=${includeImages}&includeHidden=${includeHidden}`);
       const mapped = (data.items || []).map(mapProduct);
       cache.products.set(key, { at: now(), data: mapped });
-      writeLsCache(`products:${key}`, mapped);
       return mapped;
     })();
     inflight.products.set(key, req);

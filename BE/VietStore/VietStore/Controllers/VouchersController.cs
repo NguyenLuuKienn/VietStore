@@ -38,16 +38,16 @@ public class VouchersController : ControllerBase
         var today = DateTime.UtcNow.Date;
         var voucher = await _dbContext.KhuyenMai.FirstOrDefaultAsync(x => x.MaCode == request.MaCode);
         if (voucher is null)
-            return Ok(new { IsValid = false, SoTienDuocApDung = 0m, Message = "Ma khong ton tai" });
+            return Ok(new { IsValid = false, SoTienDuocApDung = 0m, Message = "Mã không tồn tại" });
 
         if (!voucher.TrangThai || voucher.NgayBatDau > today || voucher.NgayKetThuc < today)
-            return Ok(new { IsValid = false, SoTienDuocApDung = 0m, Message = "Ma het han hoac khong hoat dong" });
+            return Ok(new { IsValid = false, SoTienDuocApDung = 0m, Message = "Mã hết hạn hoặc không hoạt động" });
 
         if (voucher.SoLuong <= voucher.DaSuDung)
-            return Ok(new { IsValid = false, SoTienDuocApDung = 0m, Message = "Ma da het luot su dung" });
+            return Ok(new { IsValid = false, SoTienDuocApDung = 0m, Message = "Mã đã hết lượt sử dụng" });
 
         if (request.TongTienHienTai < voucher.GiaTriDonToiThieu)
-            return Ok(new { IsValid = false, SoTienDuocApDung = 0m, Message = "Don hang chua dat gia tri toi thieu" });
+            return Ok(new { IsValid = false, SoTienDuocApDung = 0m, Message = "Đơn hàng chưa đạt giá trị tối thiểu" });
 
         decimal discount = voucher.LoaiGiamGia == "percent"
             ? request.TongTienHienTai * voucher.GiaTriGiam / 100m
